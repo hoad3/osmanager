@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using OSManager.Models;
 using OSManager.Service.Auth;
 
 namespace OSManager.API;
@@ -14,19 +15,45 @@ public class AuthController: ControllerBase
         _authService = authService;
     }
 
-    [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginRequest model)
+    [HttpPost("login/password")]
+    public async Task<IActionResult> LoginWithPassword([FromBody] LoginPassworkRequest model)
     {
-        var token = await _authService.LoginAsync(model.Username, model.Password);
-        if (token == null)
+        if (string.IsNullOrEmpty(model.Username) || string.IsNullOrEmpty(model.Password))
+            return BadRequest("Username and password are required");
+
+        var result = await _authService.LoginWithPasswordAsync(model.Username, model.Password);
+        if (result == null)
             return Unauthorized("Invalid credentials");
 
-        return Ok(new { token });
+        return Ok(result);
+    }
+
+    [HttpPost("login/sshkey")]
+    public async Task<IActionResult> LoginWithSshKey([FromForm] LoginSSHKetRequest model)
+    {
+        if (string.IsNullOrEmpty(model.Username) || model.SshPrivateKeyFile == null)
+            return BadRequest("Username and SSH key file are required");
+        string privateKeyContent;
+        using (var reader = new StreamReader(model.SshPrivateKeyFile.OpenReadStream()))
+        {
+            privateKeyContent = await reader.ReadToEndAsync();
+        }
+
+        var result = await _authService.LoginWithSshKeyAsync(
+            model.Username,
+            privateKeyContent,
+            model.SshKeyPassphrase
+        );
+
+        if (result == null)
+            return Unauthorized("Invalid credentials");
+
+        return Ok(result);
     }
 }
 
-public class LoginRequest
-{
-    public string Username { get; set; }
-    public string Password { get; set; }
-}
+// public class LoginRequest
+// {
+//     public string Username { get; set; }
+//     public string Password { get; set; }
+// }

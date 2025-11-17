@@ -4,5 +4,6 @@ namespace OSManager.Service.Auth;
 
 public interface IAuthService
 {
-    Task<AuthResponse?> LoginAsync(string username, string password);
+    Task<AuthResponse?> LoginWithPasswordAsync(string username, string password);
+    Task<AuthResponse?> LoginWithSshKeyAsync(string username, string sshPrivateKey, string? sshKeyPassphrase);
 }

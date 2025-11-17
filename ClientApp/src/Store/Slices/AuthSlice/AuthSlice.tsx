@@ -1,8 +1,8 @@
 import {create} from "zustand/react";
-// Định nghĩa lại kiểu AuthToken cho đúng với state và response sử dụng
 export type AuthToken = {
   apiKey: string;
   jwtToken: string;
+  role: string;
 };
 import axios from 'axios';
 
@@ -16,13 +16,14 @@ interface AuthState {
     
 }
 
-export const saveAuthTokens = (apiKey: string, jwtToken: string, expiresInSeconds: number) => {
+export const saveAuthTokens = (apiKey: string, jwtToken: string, role: string, expiresInSeconds: number) => {
     const now = Date.now();
     const expires = now + expiresInSeconds * 1000;
     
     const tokenData = {
         apiKey,
         jwtToken,
+        role,
         expires
     };
     localStorage.setItem('authTokens', JSON.stringify(tokenData));
@@ -50,7 +51,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     login: async (username: string, password: string): Promise<boolean> => {
         try {
             const response = await axios.post(
-                `${API_BASE_URL}/Auth/login`,
+                `${API_BASE_URL}/Auth/login/password`,
                 { username, password },
                 {
                     headers: {
@@ -58,9 +59,9 @@ export const useAuthStore = create<AuthState>((set) => ({
                     },
                 }
             );
-            const { apiKey, jwtToken } = response.data.token;
-            set({ token: { apiKey, jwtToken } });
-            saveAuthTokens(apiKey, jwtToken, 1800);
+            const { apiKey, jwtToken, role } = response.data;
+            set({ token: { apiKey, jwtToken, role } });
+            saveAuthTokens(apiKey, jwtToken, role, 1800);
             return true;
         } catch (error) {
             console.error('Login failed:', error);

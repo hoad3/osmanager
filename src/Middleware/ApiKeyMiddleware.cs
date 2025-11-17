@@ -26,7 +26,8 @@ public class ApiKeyMiddleware
                 path == "/" ||
                 path.StartsWith("/swagger", StringComparison.OrdinalIgnoreCase) ||
                 path.Equals("/favicon.ico", StringComparison.OrdinalIgnoreCase) ||
-                path.Equals("/api/auth/login", StringComparison.OrdinalIgnoreCase) ||
+                path.Equals("/api/auth/login/password", StringComparison.OrdinalIgnoreCase) ||
+                path.Equals("/api/auth/login/sshkey", StringComparison.OrdinalIgnoreCase) ||
                 path.StartsWith("/assets", StringComparison.OrdinalIgnoreCase) ||
                 path.EndsWith(".js", StringComparison.OrdinalIgnoreCase) ||
                 path.EndsWith(".css", StringComparison.OrdinalIgnoreCase) ||
@@ -35,7 +36,10 @@ public class ApiKeyMiddleware
                 path.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
                 path.StartsWith("/performancehub", StringComparison.OrdinalIgnoreCase) ||
                 path.StartsWith("/folderhubs", StringComparison.OrdinalIgnoreCase) ||
-                path.Contains("/negotiate") // Thêm điều kiện này
+                path.StartsWith("/dockerHub", StringComparison.OrdinalIgnoreCase) ||
+                path.StartsWith("/filehubs", StringComparison.OrdinalIgnoreCase) ||
+                path.StartsWith("/uploadhubs", StringComparison.OrdinalIgnoreCase) ||
+                path.Contains("/negotiate") 
             ))
         {
             await _next(context);

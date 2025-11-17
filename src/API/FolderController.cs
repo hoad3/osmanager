@@ -74,4 +74,33 @@ public class FolderController:ControllerBase
             return StatusCode(500, new { error = ex.Message });
         }
     }
+
+    [HttpPost("copy")]
+    public async Task<IActionResult> CopyFolderAsync([FromQuery] string sourcePath, string destinationPath, [FromQuery] bool overwrite = false, [FromQuery] bool includeRoot = true)
+    {
+        try
+        {
+            await _folderService.CopyAsync(sourcePath, destinationPath, overwrite, includeRoot);
+            return Ok(new { message = "Folder copied", sourcePath, destinationPath, includeRoot, overwrite });
+        }
+        catch (Exception e)
+        {
+            return StatusCode(500, new { error = e.Message });
+        }
+    }
+
+    [HttpPost("Cut")]
+    public async Task<IActionResult> CutFolderAsync([FromQuery] string sourcePath, string destinationPath,
+        [FromQuery] bool overwrite = false)
+    {
+        try
+        {
+            await _folderService.MoveAsync(sourcePath, destinationPath, overwrite);
+            return Ok(new { message = "Folder moved", sourcePath });
+        }
+        catch (Exception e)
+        {
+            return StatusCode(500, new { error = e.Message });
+        }
+    }
 }

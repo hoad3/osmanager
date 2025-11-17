@@ -72,4 +72,47 @@ public class FolderHubs : Hub
         }
         return;
     }
+
+    [HubMethodName("CopyFolder")]
+    public async Task CopyFolder(string sourcePath, string destinationPath, bool overwrite = false,
+        bool includeRoot = true)
+    {
+        if (string.IsNullOrWhiteSpace(sourcePath))
+        {
+            await Clients.Caller.SendAsync("Error", "Folder path cannot be empty.");
+        }
+
+        try
+        {
+            await _folderService.CopyAsync(sourcePath, destinationPath, overwrite, includeRoot);
+            var fondercopy = new { Name = sourcePath, Path = sourcePath };
+            await Clients.All.SendAsync("CopyFolder", fondercopy);
+        }
+        catch (Exception e)
+        {
+            await Clients.Caller.SendAsync("Error", e.Message);
+        }
+        return;
+    }
+
+    [HubMethodName("CutFolders")]
+    public async Task CutFolder(string sourcePath, string destinationPath, bool overwrite = false)
+    {
+        if (string.IsNullOrWhiteSpace(sourcePath))
+        {
+            await Clients.Caller.SendAsync("Error", "Folder path cannot be empty.");
+        }
+
+        try
+        {
+            await _folderService.MoveAsync(sourcePath, destinationPath, overwrite);
+            var fondercut = new { Name = sourcePath, Path = sourcePath };
+            await Clients.All.SendAsync("CutFolders", fondercut);
+        }
+        catch (Exception e)
+        {
+            await Clients.Caller.SendAsync("Error", e.Message);
+        }
+        return;
+    }
 }

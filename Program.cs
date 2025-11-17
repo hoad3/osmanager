@@ -2,25 +2,36 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 using Microsoft.OpenApi.Models;
 using OSManager.API.Models;
 using OSManager.Core.Core.Helpers;
+using OSManager.Hubs.DockerHubs;
+using OSManager.Hubs.Filehubs;
 using OSManager.Hubs.FolderHubs;
 using OSManager.Hubs.PerformanceHub;
+using OSManager.Hubs.UploadHubs;
 using OSManager.Middleware;
 using OSManager.Provider.JWTProvider;
 using OSManager.Service.Auth;
 using OSManager.Service.DirectoryExplorerService;
 using OSManager.Service.DirectoryService;
+using OSManager.Service.DockerService;
+using OSManager.Service.FileService;
+using OSManager.Service.FirewallRule;
 using OSManager.Service.FolderService;
 using OSManager.Service.SystemMonitorService;
+using OSManager.Service.UploadService;
 
 var builder = WebApplication.CreateBuilder(args);
 DotNetEnv.Env.Load();
 var env = Environment.GetEnvironmentVariable("VITE_API_URL");
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-builder.Services.AddSignalR();
+builder.Services.AddSignalR(options =>
+{
+    options.MaximumReceiveMessageSize = 1000 * 1024 * 1024; // 100 MB
+});
 builder.Services.Configure<MountSettings>(
     builder.Configuration.GetSection("MountSettings"));
 
@@ -32,7 +43,10 @@ builder.Services.AddSingleton<Core_Helpers_EnvironmentHelper>();
 builder.Services.AddSingleton<JwtSecretProvider>();
 builder.Services.AddHostedService<MonitoringBackgroundService>();
 builder.Services.AddScoped<IFolderService, FolderService>();
-
+builder.Services.AddScoped<IFirewallService, FirewallService>();
+builder.Services.AddScoped<IDockerService, DockerService>();
+builder.Services.AddScoped<IFileService, FileService>();
+builder.Services.AddScoped<IUploadService, UploadService>();
 builder.Services.AddControllers();
 
 builder.Services.AddEndpointsApiExplorer();
@@ -145,5 +159,8 @@ app.MapFallbackToFile("index.html");
 
 app.MapHub<PerformanceHub>("/performancehub").RequireCors("AllowFrontend");
 app.MapHub<FolderHubs>("/folderhubs").RequireCors("AllowFrontend");
+app.MapHub<DockerHubs>("/dockerHub");
+app.MapHub<FileHubs>("/filehubs");
+app.MapHub<UploadHubs>("/uploadhubs");
 app.Run();
 

@@ -4,4 +4,5 @@ public class AuthResponse
 {
     public string ApiKey { get; set; } = null!;
     public string JwtToken { get; set; } = null!;
+    public string Role { get; set; } = null!;
 }

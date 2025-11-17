@@ -1,12 +1,14 @@
 import {useEffect, useState, useRef} from "react";
 import {useDirectoryStore} from "../../Store/Slices/DirectoryItem/DirectoryItemSlices.ts";
-import { IoAddOutline , IoArrowBackCircleOutline, IoCloudUploadOutline  } from "react-icons/io5";
-import { RiDeleteBin6Line } from "react-icons/ri";
-import { FaRegCopy } from "react-icons/fa6";
-import { MdOutlineContentCut, MdDriveFileRenameOutline } from "react-icons/md";
+import { IoArrowBackCircleOutline } from "react-icons/io5";
 import { createFolderConnectioṇ̣̣ } from "../../Hubs/connection";
+import { copyComponent } from "../FolderComponent/CopyComponent";
 import { deleteFolder } from "../FolderComponent/DeleteComponent";
 import { renameComponent } from "../FolderComponent/RenameComponent";
+import FolderActionsComponent from "../FolderComponent/FolderActionsComponent";
+import FolderModalsComponent from "../FolderComponent/FolderModalsComponent";
+import FolderListComponent from "../FolderComponent/FolderListComponent";
+import DeleteControlComponent from "../FolderComponent/DeleteControlComponent";
 import type { HubConnection } from "@microsoft/signalr";
 const DirectoryComponent: React.FC = () => {
     const { items, loading, scanRoot, browsePath, error } = useDirectoryStore();
@@ -25,7 +27,16 @@ const DirectoryComponent: React.FC = () => {
     const [newName, setNewName] = useState("");
     const [renameError, setRenameError] = useState<string | null>(null);
     const [isRenaming, setIsRenaming] = useState(false);
+    const [isCreating, setIsCreating] = useState(false);
+    const [showCopyModal, setShowCopyModal] = useState(false);
     const connectionRef = useRef<HubConnection | null>(null);
+
+    const [clipboard, setClipboard] = useState<{
+        items: string[];
+        mode: 'copy' | 'cut' | null;
+        overwrite: boolean;
+        includeRoot: boolean;
+    }>({ items: [], mode: null, overwrite: false, includeRoot: true });
     useEffect(() => {
         scanRoot();
         setCurrentPath("");
@@ -61,6 +72,7 @@ const DirectoryComponent: React.FC = () => {
         }
 
         const fullPath = currentPath ? `${currentPath}/${name}` : name;
+        setIsCreating(true);
 
         try {
             let conn = connectionRef.current;
@@ -84,6 +96,8 @@ const DirectoryComponent: React.FC = () => {
             setNewFolderName("");
         } catch (err: any) {
             setCreateError(err?.message || "Lỗi khi tạo folder");
+        } finally {
+            setIsCreating(false);
         }
     };
     const handleBack = () => {
@@ -153,13 +167,9 @@ const DirectoryComponent: React.FC = () => {
             setIsDeleting(false);
         }
     };
-
-    // Hàm xử lý chế độ rename
     const handleRenameMode = () => {
         setIsRenameMode(!isRenameMode);
     };
-
-    // Hàm xử lý click vào icon rename
     const handleRenameClick = (item: any, event: React.MouseEvent) => {
         event.stopPropagation();
         setRenameItem({ path: item.fullPath, name: item.name });
@@ -167,8 +177,6 @@ const DirectoryComponent: React.FC = () => {
         setRenameError(null);
         setShowRenameModal(true);
     };
-
-    // Hàm xử lý rename
     const handleRename = async () => {
         if (!renameItem || !newName.trim()) {
             setRenameError("Tên mới không được để trống");
@@ -184,7 +192,6 @@ const DirectoryComponent: React.FC = () => {
                 newName.trim(),
                 (folderInfo) => {
                     console.log('Item renamed:', folderInfo);
-                    // Refresh danh sách
                     if (currentPath) {
                         browsePath(currentPath);
                     } else {
@@ -204,6 +211,66 @@ const DirectoryComponent: React.FC = () => {
             setRenameError(error instanceof Error ? error.message : "Có lỗi xảy ra khi đổi tên");
         } finally {
             setIsRenaming(false);
+        }
+    };
+    const handleCloseCreateModal = () => {
+        setShowCreateFolderModal(false);
+        setNewFolderName("");
+        setCreateError(null);
+    };
+    const handleCloseRenameModal = () => {
+        setShowRenameModal(false);
+        setRenameItem(null);
+        setNewName("");
+        setRenameError(null);
+    };
+
+    // Copy/Cut/Paste handlers
+    const handleCopySelected = () => {
+        // Mở modal chọn thư mục để copy từ danh sách hiện tại
+        setShowCopyModal(true);
+    };
+
+    const handleCutSelected = () => {
+        if (selectedItems.size === 0) return;
+        setClipboard({
+            items: Array.from(selectedItems),
+            mode: 'cut',
+            overwrite: false,
+            includeRoot: true
+        });
+    };
+
+    const handleCancelClipboard = () => {
+        setClipboard({ items: [], mode: null, overwrite: false, includeRoot: true });
+    };
+
+    const handlePasteClipboard = async () => {
+        if (!clipboard.mode || clipboard.items.length === 0) return;
+        if (!currentPath && currentPath !== "") return; 
+        const destinationPath = currentPath || "";
+
+        try {
+            for (const sourcePath of clipboard.items) {
+                await copyComponent(
+                    sourcePath,
+                    destinationPath,
+                    () => {},
+                    (err) => { console.error('Copy error:', err); },
+                    clipboard.overwrite,
+                    clipboard.includeRoot
+                );
+            }
+            if (currentPath) {
+                browsePath(currentPath);
+            } else {
+                scanRoot();
+            }
+        } catch (e) {
+            console.error('Paste failed:', e);
+        } finally {
+            setClipboard({ items: [], mode: null, overwrite: false, includeRoot: true });
+            setSelectedItems(new Set());
         }
     };
     return (
@@ -226,281 +293,72 @@ const DirectoryComponent: React.FC = () => {
                     </div>
                 </div>
             </div>
-            <div className='flex justify-start items-center flex-row'>
-                <div className="relative mr-10">
-                    <button
-                        onClick={() => setShowCreateMenu(v => !v)}
-                        className="flex-shrink-0 w-28 flex justify-center items-center flex-row h-8 border-2 rounded-2xl border-gray-100"
-                        aria-haspopup="true"
-                        aria-expanded={showCreateMenu}
-                    >
-                        <IoAddOutline className='h-6 w-6 font-bold text-gray-100'/>
-                        <div className='text-gray-100 font-bold flex justify-center items-center ml-2'>
-                            Tạo
-                        </div>
-                    </button>
-                    {showCreateMenu && (
-                        <div className="absolute mt-2 w-40 bg-slate-700 text-gray-300 rounded shadow z-50">
-                            <ul className="p-1">
-                                <li>
-                                    <button className="w-full text-left px-3 py-1 hover:bg-slate-600 rounded-2xl"
-                                            onClick={() => {
-                                                setShowCreateMenu(false);
-                                            }}>Tạo file
-                                    </button>
-                                </li>
-                                <li>
-                                    <button className="w-full text-left px-3 py-1 hover:bg-slate-600 rounded-2xl"
-                                            onClick={() => {
-                                                setShowCreateFolderModal(true);
-                                                setShowCreateMenu(false);
-                                            }}>Tạo folder
-                                    </button>
-                                </li>
-                            </ul>
-                        </div>
-                    )}
-                </div>
-                <div className="relative mr-10">
-                    <button
-
-                        className="flex-shrink-0 w-28 flex justify-center items-center flex-row h-8 border-2 rounded-2xl border-gray-100"
-                        aria-haspopup="true"
-                        aria-expanded={showCreateMenu}
-                    >
-                        <FaRegCopy className='h-6 w-6 font-bold text-gray-100'/>
-                        <div className='text-gray-100 font-bold flex justify-center items-center ml-2'>
-                            Copy
-                        </div>
-                    </button>
-                </div>
-                <div className="relative mr-10">
-                    <button
-                        className="flex-shrink-0 w-28 flex justify-center items-center flex-row h-8 border-2 rounded-2xl border-gray-100"
-                        aria-haspopup="true"
-                        aria-expanded={showCreateMenu}
-                    >
-                        <MdOutlineContentCut className='h-6 w-6 font-bold text-gray-100'/>
-                        <div className='text-gray-100 font-bold flex justify-center items-center ml-2'>
-                            Cut
-                        </div>
-                    </button>
-                </div>
-                <div className="relative mr-10">
-                    <button
-                        onClick={handleDeleteMode}
-                        className={`flex-shrink-0 w-28 flex justify-center items-center flex-row h-8 border-2 rounded-2xl ${
-                            isDeleteMode
-                                ? 'border-red-500 bg-red-600'
-                                : 'border-gray-100'
-                        }`}>
-                        <RiDeleteBin6Line className='h-6 w-6 font-bold text-gray-100'/>
-                        <div className='text-gray-100 font-bold flex justify-center items-center ml-2'>
-                            {isDeleteMode ? 'Hủy' : 'Delete'}
-                        </div>
-                    </button>
-                </div>
-                <div className="relative mr-10">
-                    <button
-                        onClick={handleRenameMode}
-                        className={`flex-shrink-0 w-28 flex justify-center items-center flex-row h-8 border-2 rounded-2xl ${
-                            isRenameMode 
-                                ? 'border-blue-500 bg-blue-600' 
-                                : 'border-gray-100'
-                        }`}
-                    >
-                        <MdDriveFileRenameOutline className='h-6 w-6 font-bold text-gray-100'/>
-                        <div className='text-gray-100 font-bold flex justify-center items-center ml-2'>
-                            {isRenameMode ? 'Hủy' : 'Rename'}
-                        </div>
-                    </button>
-                </div>
-                <div className="relative mr-10">
-                    <button
-                        className="flex-shrink-0 w-28 flex justify-center items-center flex-row h-8 border-2 rounded-2xl border-gray-100"
-                        aria-haspopup="true"
-                        aria-expanded={showCreateMenu}
-                    >
-                        <IoCloudUploadOutline className='h-6 w-6 font-bold text-gray-100'/>
-                        <div className='text-gray-100 font-bold flex justify-center items-center ml-2'>
-                            Tải lên
-                        </div>
-                    </button>
-                </div>
-            </div>
-            {isDeleteMode && (
-                <div className="mb-4 p-3 mt-10 bg-red-900/20 border border-red-500 rounded-lg">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4">
-                            <span className="text-gray-100 font-medium">
-                                Đã chọn: {selectedItems.size} item(s)
-                            </span>
-                            <button
-                                onClick={handleSelectAll}
-                                className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-                            >
-                                {selectedItems.size === items.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
-                            </button>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                            <button
-                                onClick={() => {
-                                    setIsDeleteMode(false);
-                                    setSelectedItems(new Set());
-                                }}
-                                className="px-3 py-1 bg-gray-600 text-white rounded hover:bg-gray-700"
-                            >
-                                Hủy
-                            </button>
-                            <button
-                                onClick={handleDeleteSelected}
-                                disabled={selectedItems.size === 0 || isDeleting}
-                                className={`px-3 py-1 rounded ${
-                                    selectedItems.size === 0 || isDeleting
-                                        ? 'bg-gray-500 cursor-not-allowed'
-                                        : 'bg-red-600 hover:bg-red-700'
-                                } text-white`}
-                            >
-                                {isDeleting ? 'Đang xóa...' : `Xóa ${selectedItems.size} item(s)`}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <FolderActionsComponent
+                showCreateMenu={showCreateMenu}
+                setShowCreateMenu={(show) => setShowCreateMenu(show)}
+                setShowCreateFolderModal={setShowCreateFolderModal}
+                isDeleteMode={isDeleteMode}
+                handleDeleteMode={handleDeleteMode}
+                isRenameMode={isRenameMode}
+                handleRenameMode={handleRenameMode}
+                onCopySelected={handleCopySelected}
+                onCutSelected={handleCutSelected}
+                onPasteClipboard={handlePasteClipboard}
+                onCancelClipboard={handleCancelClipboard}
+                canPaste={clipboard.items.length > 0}
+                canCopyOrCut={true}
+                clipboardLabel={`${clipboard.items.length} items (${clipboard.mode ?? ''})`}
+                currentPath={currentPath}
+            />
+            <DeleteControlComponent
+                isDeleteMode={isDeleteMode}
+                selectedItemsCount={selectedItems.size}
+                totalItemsCount={items.length}
+                isDeleting={isDeleting}
+                onSelectAll={handleSelectAll}
+                onCancel={() => {
+                    setIsDeleteMode(false);
+                    setSelectedItems(new Set());
+                }}
+                onDeleteSelected={handleDeleteSelected}
+            />
             
-            {showCreateFolderModal && (
-                <div className="fixed inset-0 flex items-center justify-center z-50">
-                    <div className="absolute inset-0 bg-black opacity-50" onClick={() => {
-                        setShowCreateFolderModal(false);
-                        setNewFolderName("");
-                        setCreateError(null);
-                    }}/>
-                    <div className="relative bg-slate-800 p-6 rounded-lg w-96">
-                        <h3 className="text-lg font-bold text-gray-100 mb-2">Tạo folder</h3>
-                        <label className="block text-gray-200 text-sm">Tên folder</label>
-                        <input
-                            autoFocus
-                            value={newFolderName}
-                            onChange={(e) => setNewFolderName(e.target.value)}
-                            className="w-full mt-2 p-2 rounded bg-slate-700 text-gray-100"
-                            placeholder="Nhập tên folder"
-                        />
-                        {createError && <div className="text-red-500 mt-2">{createError}</div>}
-                        <div className="mt-4 flex justify-end gap-2">
-                            <div>
-                                <button className="px-3 py-1 rounded bg-gray-600 text-gray-100" onClick={() => {
-                                    setShowCreateFolderModal(false);
-                                    setNewFolderName("");
-                                    setCreateError(null);
-                                }}>Hủy
-                                </button>
-                                <button
-                                    className="px-3 py-1 rounded bg-indigo-600 text-white"
-                                    onClick={handleCreateFolder}
-                                >
-                                    Tạo
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <FolderModalsComponent
+                showCreateFolderModal={showCreateFolderModal}
+                newFolderName={newFolderName}
+                setNewFolderName={setNewFolderName}
+                createError={createError}
+                isCreating={isCreating}
+                onCreateFolder={handleCreateFolder}
+                onCloseCreateModal={handleCloseCreateModal}
+                showRenameModal={showRenameModal}
+                renameItem={renameItem}
+                newName={newName}
+                setNewName={setNewName}
+                renameError={renameError}
+                isRenaming={isRenaming}
+                onRename={handleRename}
+                onCloseRenameModal={handleCloseRenameModal}
+                showCopyModal={showCopyModal}
+                copyCandidates={items.map(it => ({ path: it.fullPath, name: it.name, isDirectory: it.isDirectory }))}
+                onConfirmCopySelection={(paths) => {
+                    setClipboard({ items: paths, mode: 'copy', overwrite: false, includeRoot: true });
+                    setShowCopyModal(false);
+                }}
+                onCancelCopySelection={() => setShowCopyModal(false)}
+            />
 
-            {/* Modal rename */}
-            {showRenameModal && (
-                <div className="fixed inset-0 flex items-center justify-center z-50">
-                    <div className="absolute inset-0 bg-black opacity-50" onClick={() => {
-                        setShowRenameModal(false);
-                        setRenameItem(null);
-                        setNewName("");
-                        setRenameError(null);
-                    }}/>
-                    <div className="relative bg-slate-800 p-6 rounded-lg w-96">
-                        <h3 className="text-lg font-bold text-gray-100 mb-2">Đổi tên</h3>
-                        <div className="mb-4">
-                            <label className="block text-gray-200 text-sm mb-1">Tên hiện tại:</label>
-                            <span className="text-gray-300">{renameItem?.name}</span>
-                        </div>
-                        <div className="mb-4">
-                            <label className="block text-gray-200 text-sm mb-1">Tên mới:</label>
-                            <input
-                                autoFocus
-                                value={newName}
-                                onChange={(e) => setNewName(e.target.value)}
-                                className="w-full mt-1 p-2 rounded bg-slate-700 text-gray-100"
-                                placeholder="Nhập tên mới"
-                            />
-                        </div>
-                        {renameError && <div className="text-red-500 mb-4">{renameError}</div>}
-                        <div className="flex justify-end gap-2">
-                            <button 
-                                className="px-3 py-1 rounded bg-gray-600 text-gray-100 hover:bg-gray-700" 
-                                onClick={() => {
-                                    setShowRenameModal(false);
-                                    setRenameItem(null);
-                                    setNewName("");
-                                    setRenameError(null);
-                                }}
-                            >
-                                Hủy
-                            </button>
-                            <button
-                                className={`px-3 py-1 rounded text-white ${
-                                    isRenaming || !newName.trim()
-                                        ? 'bg-gray-500 cursor-not-allowed'
-                                        : 'bg-blue-600 hover:bg-blue-700'
-                                }`}
-                                onClick={handleRename}
-                                disabled={isRenaming || !newName.trim()}
-                            >
-                                {isRenaming ? 'Đang đổi tên...' : 'Đổi tên'}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {loading && <div>Đang tải...</div>}
-            {error && <div className="text-red-500">{error}</div>}
-            <ul>
-                {items.map((item) => (
-                    <li
-                        key={item.fullPath}
-                        className={`relative flex items-center justify-between p-1 hover:border-1 rounded-2xl ${
-                            item.isDirectory ? "font-bold text-indigo-600" : "text-gray-200"
-                        } ${
-                            isDeleteMode ? 'cursor-default' : 'cursor-pointer'
-                        } ${
-                            selectedItems.has(item.fullPath) ? 'bg-red-900/20 border border-red-500' : ''
-                        }`}
-                        onClick={isDeleteMode ? undefined : () => handleFolderClick(item)}
-                    >
-                        <div className="flex items-center min-w-0">
-                            {isDeleteMode && (
-                                <input
-                                    type="checkbox"
-                                    checked={selectedItems.has(item.fullPath)}
-                                    onChange={(e) => handleItemSelect(item.fullPath, e as any)}
-                                    className="mr-3 h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
-                                />
-                            )}
-                            <span className="mr-2">{item.isDirectory ? "📁" : "📄"}</span>
-                            <span className="truncate" title={item.fullPath}>{item.name}</span>
-                        </div>
-
-                        {/* Thêm icon rename khi ở chế độ rename */}
-                        {isRenameMode && (
-                            <button
-                                onClick={(e) => handleRenameClick(item, e)}
-                                className="ml-2 p-1 text-blue-500 hover:text-blue-700 hover:bg-blue-100 rounded"
-                                title="Đổi tên"
-                            >
-                                <MdDriveFileRenameOutline className="h-4 w-4" />
-                            </button>
-                        )}
-                    </li>
-                ))}
-            </ul>
+            <FolderListComponent
+                items={items}
+                loading={loading}
+                error={error}
+                isDeleteMode={isDeleteMode}
+                selectedItems={selectedItems}
+                onItemSelect={handleItemSelect}
+                onFolderClick={handleFolderClick}
+                isRenameMode={isRenameMode}
+                onRenameClick={handleRenameClick}
+            />
         </div>
     );
 };

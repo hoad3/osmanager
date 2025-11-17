@@ -19,10 +19,7 @@ export const deleteFolder = async (
       connection.on("Error", onError);
     }
     await connection.start();
-    console.log("Connected to folder hub");
     await connection.invoke("deleteFolder", relativePath, recursive);
-    console.log(`Deleting folder: ${relativePath}, recursive: ${recursive}`);
-    
   } catch (error) {
     console.error("Error deleting folder:", error);
     throw error;
@@ -34,6 +31,5 @@ export const deleteFolder = async (
       connection.off("Error", onError);
     }
     await connection.stop();
-    console.log("Disconnected from folder hub");
   }
 };

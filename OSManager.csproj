@@ -9,14 +9,16 @@
 
     <ItemGroup>
         <PackageReference Include="ClosedXML" Version="0.105.0" />
+        <PackageReference Include="Docker.DotNet" Version="3.125.15" />
         <PackageReference Include="Microsoft.AspNetCore.ApiAuthorization.IdentityServer" Version="8.0.0-preview.6.23329.11" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.14"/>
+        <PackageReference Include="Milvasoft.Components.Swagger" Version="8.2.4" />
+        <PackageReference Include="Renci.SshNet.Async" Version="1.4.0" />
         <PackageReference Include="SignalRSwaggerGen.Core" Version="1.5.0" />
-        <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2"/>
         <PackageReference Include="MailKit" Version="4.8.0" />
         <PackageReference Include="QRCoder" Version="1.6.0" />
         <PackageReference Include="SSH.NET" Version="2024.2.0" />
-        <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0"/>
+        <PackageReference Include="Swashbuckle.AspNetCore" Version="6.6.2"/>
         <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.0-preview.3.24172.4" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.0-preview.3.24172.4" />
         <PackageReference Include="DotNetEnv" Version="3.1.1" />
@@ -30,7 +32,6 @@
 
     <ItemGroup>
       <Folder Include="src\Helper\" />
-      <Folder Include="src\Service\FileService\" />
       <Folder Include="wwwroot\" />
     </ItemGroup>
 

@@ -4,6 +4,8 @@ import HomePageComponent from '../Pages/Homepage/HomePageComponent'
 import LoginPage from '../Pages/LoginPage/LoginPage'
 import PrivateRoute from './PrivateRoute.tsx'
 import DirectoryPage from '../Pages/DirectoryPage/DirectoryPage'
+import DockerContainerPage from "../Pages/DockerPage/DockerContainerPage.tsx";
+import DockerImagesComponent from "../Component/DockerComponent/DockerImagesComponent.tsx";
 
 const router = createBrowserRouter([
 	{ path: '/', element: <LoginPage /> },
@@ -13,6 +15,8 @@ const router = createBrowserRouter([
 		children: [
 			{ path: 'home', element: <PrivateRoute><HomePageComponent /></PrivateRoute> },
 			{ path: 'directory', element: <PrivateRoute><DirectoryPage /></PrivateRoute> },
+			{path:'container', element:<PrivateRoute><DockerContainerPage/></PrivateRoute>},
+			{path:'images', element:<PrivateRoute><DockerImagesComponent/></PrivateRoute>}
 		],
 	},
 ])

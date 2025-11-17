@@ -1,10 +1,4 @@
 ﻿import {HttpTransportType, HubConnectionBuilder} from "@microsoft/signalr";
-// import { loadEnv } from 'vite'
-// import path from "path";
-// const API_BASE_URL = '/api/performanceHub'
-// const envDir = path.resolve(__dirname, '..')
-// const env = loadEnv(envDir,'')
-// const apiUrl = env.VITE_API_URL || env.API_URL
 const url = import.meta.env.VITE_API_URL as string | undefined;
 
 function getBaseUrl() {
@@ -55,11 +49,10 @@ export function deleteFolderConnection(){
         .build();
 }
 
-export function renameFolderConnection(){
+export function dockerConnection(){
     const tokenData = JSON.parse(localStorage.getItem("authTokens") ?? "{}");
     const jwtToken = tokenData.jwtToken || "";
-    const hubUrl = `${getBaseUrl()}/rename`;
-    console.log("Connecting to rename folder:", hubUrl);
+    const hubUrl = `${getBaseUrl()}/dockerHub`;
     return new HubConnectionBuilder()
         .withUrl(hubUrl, {
             withCredentials: true,
@@ -67,5 +60,33 @@ export function renameFolderConnection(){
             transport: HttpTransportType.WebSockets
         })
         .withAutomaticReconnect()
-        .build()
+        .build();
+}
+
+export function fileConnection(){
+    const tokenData = JSON.parse(localStorage.getItem("authTokens") ?? "{}");
+    const jwtToken = tokenData.jwtToken || "";
+    const hubUrl = `${getBaseUrl()}/filehubs`;
+    return new HubConnectionBuilder()
+        .withUrl(hubUrl, {
+            withCredentials: true,
+            accessTokenFactory: () => jwtToken,
+            transport: HttpTransportType.WebSockets
+        })
+        .withAutomaticReconnect()
+        .build();
+}
+
+export function UploadConnection(){
+    const tokenData = JSON.parse(localStorage.getItem("authTokens") ?? "{}");
+    const jwtToken = tokenData.jwtToken || "";
+    const hubUrl = `${getBaseUrl()}/uploadhubs`;
+    return new HubConnectionBuilder()
+        .withUrl(hubUrl, {
+            withCredentials: true,
+            accessTokenFactory: () => jwtToken,
+            transport: HttpTransportType.WebSockets
+        })
+        .withAutomaticReconnect()
+        .build();
 }

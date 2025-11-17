@@ -62,7 +62,7 @@ const PerformanceMonitor: React.FC = () => {
                     });
                 });
             } catch (err) {
-                console.error("❌ Connection failed:", err);
+                console.error("Connection failed:", err);
             }
         };
 

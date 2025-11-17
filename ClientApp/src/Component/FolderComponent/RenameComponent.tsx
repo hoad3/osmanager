@@ -23,12 +23,8 @@ export const renameComponent = async (
             connection.on("Error", onError);
         }
         await connection.start();
-        console.log("Connected to folder hub");
         await connection.invoke("RenameFolder", relativePath, newName.trim());
-        console.log(`Renaming: ${relativePath} to ${newName}`);
-
     } catch (error) {
-        console.error("Error renaming folder:", error);
         throw error;
     } finally {
         if (onSuccess) {
@@ -38,6 +34,5 @@ export const renameComponent = async (
             connection.off("Error", onError);
         }
         await connection.stop();
-        console.log("Disconnected from folder hub");
     }
 };

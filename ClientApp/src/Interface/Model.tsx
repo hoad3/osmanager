@@ -16,4 +16,34 @@ export interface PerformanceData{
     disk: string; // thay vì Disk
 }
 
+export interface PortInfo {
+    privatePort: number;
+    publicPort: number;
+    type: string;
+}
+
+export interface ContainerItem {
+    id: string;
+    name: string;
+    image: string;
+    state: string;
+    status: string;
+    created: string;
+    ports: PortInfo[];
+}
+
+export interface ImagesItem {
+    id: string;
+    repoTags: string;
+    size: string;
+    created: string;
+    containers: number
+}
+
+export interface FileUploadModel {
+    fileName: string;
+    Base64Data: string;
+    isFolder?: boolean; 
+}
+
 
