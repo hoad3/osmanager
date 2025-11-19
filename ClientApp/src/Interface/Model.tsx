@@ -42,8 +42,9 @@ export interface ImagesItem {
 
 export interface FileUploadModel {
     fileName: string;
-    Base64Data: string;
+    fileStream: Blob;
     isFolder?: boolean; 
 }
+
 
 

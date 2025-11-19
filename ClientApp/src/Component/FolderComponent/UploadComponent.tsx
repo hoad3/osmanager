@@ -1,5 +1,4 @@
 import React, { useRef, useState } from 'react';
-import { UploadConnection } from '../../Hubs/connection';
 import { uploadFiles } from '../../Hubs/UploadHubs/UploadHubs';
 
 type UploadComponentProps = {
@@ -25,18 +24,16 @@ const UploadComponent: React.FC<UploadComponentProps> = ({ currentPath = '', onU
     const doUpload = async () => {
         if (selectedFiles.length === 0) return;
         setUploading(true);
-        const conn = UploadConnection();
-        try {
-            await conn.start();
-            const target = currentPath && currentPath.trim() !== '' ? currentPath.replace(/\/$/, '') : '';
-            setStatusMap(prev => {
-                const next = { ...prev };
-                selectedFiles.forEach(f => (next[f.name] = 'uploading'));
-                return next;
-            });
 
+        const target = currentPath && currentPath.trim() !== '' ? currentPath.replace(/\/$/, '') : '';
+        setStatusMap(prev => {
+            const next = { ...prev };
+            selectedFiles.forEach(f => (next[f.name] = 'uploading'));
+            return next;
+        });
+
+        try {
             await uploadFiles(
-                conn,
                 target,
                 selectedFiles,
                 (res) => {
@@ -45,7 +42,7 @@ const UploadComponent: React.FC<UploadComponentProps> = ({ currentPath = '', onU
                         selectedFiles.forEach(f => (next[f.name] = 'success'));
                         return next;
                     });
-                    if (onUploaded) onUploaded(res);
+                    onUploaded?.(res);
                 },
                 (err) => {
                     setStatusMap(prev => {
@@ -57,14 +54,13 @@ const UploadComponent: React.FC<UploadComponentProps> = ({ currentPath = '', onU
                 }
             );
         } catch (err) {
-            console.error(err);
             setStatusMap(prev => {
                 const next = { ...prev };
                 selectedFiles.forEach(f => (next[f.name] = 'error'));
                 return next;
             });
+            console.error(err);
         } finally {
-            try { await conn.stop(); } catch {}
             setUploading(false);
         }
     };

@@ -4,5 +4,5 @@ namespace OSManager.Service.UploadService;
 
 public interface IUploadService
 {
-    Task UploadMixedAsync(string relativePath, List<FileUploadModel> items);
+    Task UploadItemsAsync(string relativePath, List<FileUploadModel> items);
 }

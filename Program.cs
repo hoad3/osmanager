@@ -10,7 +10,7 @@ using OSManager.Hubs.DockerHubs;
 using OSManager.Hubs.Filehubs;
 using OSManager.Hubs.FolderHubs;
 using OSManager.Hubs.PerformanceHub;
-using OSManager.Hubs.UploadHubs;
+// using OSManager.Hubs.UploadHubs;
 using OSManager.Middleware;
 using OSManager.Provider.JWTProvider;
 using OSManager.Service.Auth;
@@ -30,7 +30,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSignalR(options =>
 {
-    options.MaximumReceiveMessageSize = 1000 * 1024 * 1024; // 100 MB
+    options.MaximumReceiveMessageSize = 1000 * 1024 * 1024; // 1000 MB
 });
 builder.Services.Configure<MountSettings>(
     builder.Configuration.GetSection("MountSettings"));
@@ -161,6 +161,6 @@ app.MapHub<PerformanceHub>("/performancehub").RequireCors("AllowFrontend");
 app.MapHub<FolderHubs>("/folderhubs").RequireCors("AllowFrontend");
 app.MapHub<DockerHubs>("/dockerHub");
 app.MapHub<FileHubs>("/filehubs");
-app.MapHub<UploadHubs>("/uploadhubs");
+// app.MapHub<UploadHubs>("/uploadhubs");
 app.Run();
 

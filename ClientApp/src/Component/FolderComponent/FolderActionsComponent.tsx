@@ -5,7 +5,7 @@ import { RiDeleteBin6Line } from "react-icons/ri";
 import { FaRegCopy } from "react-icons/fa6";
 import { MdOutlineContentCut, MdDriveFileRenameOutline } from "react-icons/md";
 import { IoCloudUploadOutline } from "react-icons/io5";
-import { initUploadHub, uploadFiles } from '../../Hubs/UploadHubs/UploadHubs';
+import {useUploadStore} from "../../Store/Slices/UploadSlice/UploadSlice.ts";
 
 interface FolderActionsProps {
     showCreateMenu: boolean;
@@ -25,6 +25,7 @@ interface FolderActionsProps {
     /** current folder path where new files should be created, e.g. 'home/daongochoa/docs' */
     currentPath?: string;
     onFileCreated?: (fileInfo: { Name: string; Path: string }) => void;
+    onFileUploaded?: () => void;
 }
 
 const FolderActionsComponent: React.FC<FolderActionsProps> = ({
@@ -42,37 +43,97 @@ const FolderActionsComponent: React.FC<FolderActionsProps> = ({
     canPaste = false,
     canCopyOrCut = true,
     clipboardLabel,
-    currentPath,
+    currentPath, onFileUploaded,
     onFileCreated
+    
 }) => {
     const [creating, setCreating] = useState(false);
-    const [uploading, setUploading] = useState(false);
+    // const [uploading, setUploading] = useState(false);
+    const [ ,setSelectedFiles] = useState<File[]>([]);
     const fileInputRef = useRef<HTMLInputElement | null>(null);
-
+    const { uploading, success, uploadFiles } = useUploadStore();
+    const [showDropZone, setShowDropZone] = useState(false);
     const handleFilesSelected = async (filesList: FileList | null) => {
         const files = filesList ? Array.from(filesList) : [];
         if (files.length === 0) return;
-        const target = currentPath && currentPath.trim() !== '' ? currentPath.replace(/\/$/, '') : '';
-        setUploading(true);
+        setSelectedFiles(files);
+
+        const target = currentPath?.trim().replace(/\/$/, '') ?? '';
+
         try {
-            const conn = await initUploadHub();
-            await uploadFiles(
-                conn,
-                target,
-                files,
-                () => {
-                    alert('Upload thành công');
-                },
-                (err) => {
-                    alert(`Lỗi upload: ${String(err)}`);
-                }
-            );
+            await uploadFiles(target, files); // gọi trực tiếp hàm từ Zustand
+            if (success) {
+                alert('Upload thành công');
+                if (onFileUploaded) onFileUploaded();
+            }
         } catch (err: any) {
             alert(`Lỗi khi upload: ${err?.message ?? String(err)}`);
         } finally {
-            setUploading(false);
             if (fileInputRef.current) fileInputRef.current.value = '';
         }
+    };
+
+    const getFilesFromDataTransferItems = async (items: DataTransferItemList): Promise<File[]> => {
+        const files: File[] = [];
+
+        const traverseFileTree = (entry: any, path = ''): Promise<void> => {
+            return new Promise((resolve) => {
+                if (entry.isFile) {
+                    entry.file((file: File) => {
+                        // Lưu fullPath để server biết đường dẫn
+                        const fileWithPath = new File([file], path + file.name, { type: file.type });
+                        (fileWithPath as any).relativePath = path + file.name; // thêm relativePath
+                        files.push(fileWithPath);
+                        resolve();
+                    });
+                } else if (entry.isDirectory) {
+                    const dirReader = entry.createReader();
+                    dirReader.readEntries(async (entries: any[]) => {
+                        for (const entr of entries) {
+                            await traverseFileTree(entr, path + entry.name + '/');
+                        }
+                        resolve();
+                    });
+                }
+            });
+        };
+
+        const promises: Promise<void>[] = [];
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i].webkitGetAsEntry();
+            if (item) promises.push(traverseFileTree(item));
+        }
+
+        await Promise.all(promises);
+        return files;
+    };
+    const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (!e.dataTransfer.items) return;
+
+        const files = await getFilesFromDataTransferItems(e.dataTransfer.items);
+        if (files.length === 0) return;
+
+        setSelectedFiles(files);
+
+        const target = currentPath?.trim().replace(/\/$/, '') ?? '';
+
+        try {
+            await uploadFiles(target, files); // Zustand upload
+            if (success) {
+                alert('Upload thành công');
+                if (onFileUploaded) onFileUploaded();
+            }
+        } catch (err: any) {
+            alert(`Lỗi khi upload: ${err?.message ?? String(err)}`);
+        }
+    };
+
+    const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
     };
     return (
         <div className='flex justify-start items-center flex-row'>
@@ -239,28 +300,41 @@ const FolderActionsComponent: React.FC<FolderActionsProps> = ({
             </div>
 
             {/* Upload button */}
-            <div className="relative mr-10">
-                <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    className="hidden"
-                    onChange={(e) => handleFilesSelected(e.target.files)}
-                />
+            <button
+                onClick={() => setShowDropZone(!showDropZone)}
+                className={`flex-shrink-0 w-28 flex justify-center items-center flex-row h-8 border-2 rounded-2xl border-gray-100`}
+                disabled={uploading}
+            >
+                <IoCloudUploadOutline className="h-6 w-6 font-bold text-gray-100"/>
+                <div className="text-gray-100 font-bold flex justify-center items-center ml-2">
+                    {uploading ? 'Đang tải...' : 'Tải lên'}
+                </div>
+            </button>
 
-                <button
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex-shrink-0 w-28 flex justify-center items-center flex-row h-8 border-2 rounded-2xl border-gray-100"
-                    aria-haspopup="true"
-                    aria-expanded={showCreateMenu}
-                    disabled={uploading}
+            {showDropZone && (
+                <div
+                    className="absolute z-50 mt-[500px] ml-[500px] w-1/2 h-96 border-2 border-dashed border-gray-400 rounded flex flex-col justify-center items-center bg-slate-700 text-gray-200 p-4"
+                    onDrop={handleDrop}
+                    onDragOver={handleDragOver}
                 >
-                    <IoCloudUploadOutline className='h-6 w-6 font-bold text-gray-100'/>
-                    <div className='text-gray-100 font-bold flex justify-center items-center ml-2'>
-                        {uploading ? 'Đang tải...' : 'Tải lên'}
-                    </div>
-                </button>
-            </div>
+                    <p>Kéo file hoặc folder vào đây</p>
+                    <p className="text-sm mt-2 text-gray-400"></p>
+                    <input
+                        type="file"
+                        multiple
+                        className="hidden"
+                        ref={fileInputRef}
+                        onChange={(e) => handleFilesSelected(e.target.files)}
+                        {...({ webkitdirectory: 'true' } as any)}
+                    />
+                    {/*<button*/}
+                    {/*    className="mt-3 px-4 py-1 border rounded bg-gray-600 hover:bg-gray-500"*/}
+                    {/*    onClick={() => fileInputRef.current?.click()}*/}
+                    {/*>*/}
+                    {/*    Chọn file/folder*/}
+                    {/*</button>*/}
+                </div>
+            )}
         </div>
     );
 };
