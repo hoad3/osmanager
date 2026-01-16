@@ -1,0 +1,25 @@
+﻿sequenceDiagram
+    participant Client
+    participant Middleware as ApiKeyMiddleware
+    participant Service as MonitoringBackgroundService
+    participant Hub as PerformanceHub
+
+    Client->>Middleware: Send HTTP request / SignalR connect
+    Middleware->>Middleware: Check path
+    alt Public path
+        Middleware-->>Client: Forward request
+    else API path
+        Middleware->>Middleware: Validate X-API-KEY
+        alt Valid
+            Middleware-->>Client: Forward request
+        else Invalid
+            Middleware-->>Client: 401 Unauthorized
+        end
+    end
+
+    Note over Service,Hub: Background Service loop
+
+    Service->>Service: Read performance metrics
+    Service->>Hub: SendAsync(ReceivePerformance, metrics)
+    Hub-->>Clients: Broadcast metrics
+    Service->>Service: Wait 1s

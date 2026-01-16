@@ -1,0 +1,50 @@
+﻿sequenceDiagram
+    autonumber
+    actor ADMIN as Admin
+    participant UserService as UserService
+    participant SSH as SSH Server
+    participant Storage as StorageService
+    participant Queue as HistoryQueue
+    participant Time as ITimeService
+
+%% --- CREATE USER ---
+    ADMIN ->> UserService: CreateUser(dto)
+    alt Validate input
+        UserService ->> UserService: Check dto fields (Username, Password, SSH Key)
+    end
+
+    UserService ->> SSH: RunRemoteCommandUsingPrivateKey(cmd=create user)
+    SSH -->> UserService: stdout / stderr
+
+    UserService ->> Storage: LogUserInformation(username, info)
+    UserService ->> Queue: Enqueue(LogEntry{Action="Create User"})
+    Time -->> UserService: GetVietnamNowOffset()
+    UserService ->> ADMIN: Return / Finish
+
+%% --- UPDATE USER PERMISSIONS ---
+    ADMIN ->> UserService: UpdateUserPermissions(dto)
+    alt Validate input
+        UserService ->> UserService: Check dto fields (Username, SSH Key)
+    end
+
+    UserService ->> SSH: RunRemoteCommandUsingPrivateKey(cmd=update permissions)
+    SSH -->> UserService: stdout / stderr
+
+    UserService ->> Storage: LogUserInformation(username, updatedInfo)
+    UserService ->> Queue: Enqueue(LogEntry{Action="Update User"})
+    Time -->> UserService: GetVietnamNowOffset()
+    UserService ->> ADMIN: Return / Finish
+
+%% --- DELETE USER ---
+    ADMIN ->> UserService: DeleteUser(dto)
+    alt Validate input
+        UserService ->> UserService: Check dto fields (Username, SSH Key)
+    end
+
+    UserService ->> SSH: RunRemoteCommandUsingPrivateKey(cmd=delete user)
+    SSH -->> UserService: stdout / stderr
+
+    UserService ->> Storage: DeleteUserInformation(username)
+    UserService ->> Queue: Enqueue(LogEntry{Action="Delete User"})
+    Time -->> UserService: GetVietnamNowOffset()
+    UserService ->> ADMIN: Return / Finish

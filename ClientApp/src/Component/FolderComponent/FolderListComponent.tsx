@@ -41,7 +41,11 @@ const FolderListComponent: React.FC<FolderListProps> = ({
 
     React.useEffect(() => {
         if (modalOpen) {
-            setEditorContent(fileContent ?? "");
+            if (typeof fileContent === "object") {
+                setEditorContent(JSON.stringify(fileContent, null, 2)); // ⭐ stringify đẹp
+            } else {
+                setEditorContent(fileContent ?? "");
+            }
         }
     }, [fileContent, modalOpen]);
     const isForbiddenFile = (fileName: string) => {

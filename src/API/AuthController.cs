@@ -1,6 +1,10 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using System.Text.Json;
+using Microsoft.AspNetCore.Identity.Data;
+using Microsoft.AspNetCore.Mvc;
+using OSManager.Middleware;
 using OSManager.Models;
 using OSManager.Service.Auth;
+using LoginRequest = OSManager.Models.LoginRequest;
 
 namespace OSManager.API;
 [ApiController]
@@ -9,22 +13,45 @@ public class AuthController: ControllerBase
 {
     
     private readonly IAuthService _authService;
+    private readonly MiddlewareStorage _aesMiddleware;
 
-    public AuthController(IAuthService authService)
+    public AuthController(IAuthService authService, MiddlewareStorage aesMiddleware)
     {
+        _aesMiddleware = aesMiddleware;
         _authService = authService;
     }
-
+    
+    // [HttpPost("login/password")]
+    // public async Task<IActionResult> LoginWithPassword([FromBody] LoginPassworkRequest model)
+    // {
+    //     Console.WriteLine("Iv: "+ model?.Iv);
+    //     Console.WriteLine("Iv: "+ model?.Cipher);
+    //     string plain;
+    //     try
+    //     {
+    //         plain = _aesMiddleware.DecryptFromBase64(model.Iv, model.Cipher);
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         // log & return 400 or 422
+    //         Console.WriteLine("Decrypt error: " + ex.Message);
+    //         return BadRequest("invalid payload");
+    //     }
+    //     Console.WriteLine("DecryptAPI: "+ plain);
+    //     var login = Newtonsoft.Json.JsonConvert.DeserializeObject<LoginRequest>(plain);
+    //     Console.WriteLine("login: "+ login);
+    //     return Ok(await _authService.LoginWithPasswordAsync(login.Username, login.Password));
+    // }
     [HttpPost("login/password")]
     public async Task<IActionResult> LoginWithPassword([FromBody] LoginPassworkRequest model)
     {
         if (string.IsNullOrEmpty(model.Username) || string.IsNullOrEmpty(model.Password))
             return BadRequest("Username and password are required");
-
+    
         var result = await _authService.LoginWithPasswordAsync(model.Username, model.Password);
         if (result == null)
             return Unauthorized("Invalid credentials");
-
+    
         return Ok(result);
     }
 

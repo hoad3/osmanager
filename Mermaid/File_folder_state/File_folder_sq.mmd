@@ -1,0 +1,19 @@
+﻿sequenceDiagram
+    participant Client
+    participant FileHub
+    participant FileService
+    participant FolderHub
+    participant FolderService
+    participant HistoryQueue
+
+    Client->>FileHub: CreateFiles(relativePath)
+    FileHub->>FileService: CreateFileAsync()
+    FileService->>HistoryQueue: Enqueue(CreateFile Log)
+    FileService-->>FileHub: Return created path
+    FileHub-->>Client: CreateFiles event
+
+    Client->>FolderHub: DeleteFolder(path)
+    FolderHub->>FolderService: DeleteAsync(path)
+    FolderService->>HistoryQueue: Enqueue(Delete Log)
+    FolderService-->>FolderHub: Success
+    FolderHub-->>Client: DeleteFolder event

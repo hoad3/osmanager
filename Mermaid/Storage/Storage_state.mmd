@@ -1,0 +1,58 @@
+﻿stateDiagram
+    [*] --> Idle : StorageService khởi tạo
+
+%% StorageService states
+    state StorageService {
+        Idle --> Initializing : Initialize()
+        Initializing --> Ready : Tạo thư mục + CleanupOldHistoryFiles()
+
+        Ready --> LoggingBatch : LogBatch(logs)
+        LoggingBatch --> ReadingExistingLogs : Đọc file lịch sử nếu có
+        ReadingExistingLogs --> AppendNewLogs : Thêm log mới
+        AppendNewLogs --> EncryptAndWrite : Ghi file + mã hóa
+        EncryptAndWrite --> CleanupOldHistoryFiles : Xóa file >7 ngày
+        CleanupOldHistoryFiles --> Ready : Trở về Ready
+
+        Ready --> LogUserInfo : LogUserInformation(username, data)
+        LogUserInfo --> ReadExistingUserFile : Đọc file nếu có
+        ReadExistingUserFile --> MergeUserData : Gộp dữ liệu
+        MergeUserData --> EncryptAndWriteUserFile : Mã hóa + ghi
+        EncryptAndWriteUserFile --> Ready
+
+        Ready --> DeleteUserInfo : DeleteUserInformation(username)
+        DeleteUserInfo --> DeleteFile : Xóa file nếu tồn tại
+        DeleteFile --> Ready
+
+        Ready --> SaveDockerData : SaveDockerContainerData(id, data)
+        SaveDockerData --> EncryptAndWriteDockerFile : Mã hóa + ghi
+        EncryptAndWriteDockerFile --> Ready
+
+        Ready --> DeleteDockerData : DeleteDockerContainerData(id)
+        DeleteDockerData --> DeleteDockerFile : Xóa file nếu tồn tại
+        DeleteDockerFile --> Ready
+
+        Ready --> GetAllUsers : GetAllUsers()
+        GetAllUsers --> ReadUserFiles : Giải mã + đọc tất cả file user
+        ReadUserFiles --> Ready
+
+        Ready --> GetAllDockerContainers : GetAllDockerContainers()
+        GetAllDockerContainers --> ReadDockerFiles : Giải mã + đọc tất cả file container
+        ReadDockerFiles --> Ready
+    }
+
+%% MiddlewareStorage states
+    state MiddlewareStorage {
+        [*] --> Encrypting : EncryptToFile()
+        [*] --> Decrypting : DecryptFromFile()
+        Encrypting --> [*]
+        Decrypting --> [*]
+    }
+
+%% Linking storage with crypto
+    EncryptAndWrite --> MiddlewareStorage : EncryptToFile()
+    EncryptAndWriteUserFile --> MiddlewareStorage : EncryptToFile()
+    EncryptAndWriteDockerFile --> MiddlewareStorage : EncryptToFile()
+    ReadingExistingLogs --> MiddlewareStorage : DecryptFromFile()
+    ReadExistingUserFile --> MiddlewareStorage : DecryptFromFile()
+    ReadUserFiles --> MiddlewareStorage : DecryptFromFile()
+    ReadDockerFiles --> MiddlewareStorage : DecryptFromFile()

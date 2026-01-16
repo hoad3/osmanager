@@ -1,0 +1,35 @@
+﻿sequenceDiagram
+    participant User as User
+    participant Middleware as MiddlewareStorage
+    participant SHA256 as SHA-256
+    participant AES as AES(CBC)
+    participant FileSys as File System
+
+    User->>Middleware: EncryptToFile(filePath, plainText)
+
+    Note over Middleware: 1. Sinh Key từ secret
+    Middleware->>SHA256: ComputeHash(secret)
+    SHA256-->>Middleware: 32-byte Key (_key)
+
+    Note over Middleware: 2. Tạo AES + IV
+    Middleware->>AES: Create AES instance
+    AES-->>Middleware: AES object
+    Middleware->>AES: aes.Key = _key
+    Middleware->>AES: aes.GenerateIV()
+    AES-->>Middleware: 16-byte IV
+    Middleware->>AES: aes.Mode = CBC
+
+    Note over Middleware: 3. Mã hóa dữ liệu
+    Middleware->>AES: CreateEncryptor(Key, IV)
+    AES-->>Middleware: encryptor
+    Middleware->>AES: Encrypt(plainText)
+    AES-->>Middleware: ciphertext
+
+    Note over Middleware: 4. Ghép IV + ciphertext
+    Middleware->>Middleware: finalBytes = IV + ciphertext
+
+    Note over Middleware: 5. Ghi file
+    Middleware->>FileSys: WriteAllBytes(filePath, finalBytes)
+    FileSys-->>Middleware: ✔ Saved
+
+    Middleware-->>User: ✔ Encryption Complete

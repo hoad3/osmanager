@@ -1,0 +1,44 @@
+﻿sequenceDiagram
+    autonumber
+
+    participant C as Client
+    participant AC as AuthController
+    participant AS as AuthService
+    participant SSH as SSH Server
+    participant JSP as JwtSecretProvider
+    participant AK as ApiKeyStore
+
+%% ==== LOGIN REQUEST ====
+    C->>AC: POST /auth/login\n(username, password OR sshKey)
+
+%% ==== CHOOSE LOGIN METHOD ====
+    AC->>AS: LoginWithPasswordAsync() OR LoginWithSshKeyAsync()
+
+    alt Login with Password
+        AS->>SSH: TryAuthenticateWithPassword\n(username, password)
+        SSH-->>AS: Success or Fail
+    else Login with SSH Key
+        AS->>SSH: TryAuthenticateWithPrivateKey\n(username, sshKey, passphrase)
+        SSH-->>AS: Success or Fail
+    end
+
+%% ==== AUTH RESULT ====
+    alt Auth Failed
+        AS-->>AC: null
+        AC-->>C: 401 Unauthorized
+    else Auth Success
+    %% === CREATE RESPONSE ===
+        AS->>AS: DetermineRole(username)
+        AS->>AS: BuildClaims(username)
+
+        AS->>AK: Generate ApiKey
+        AK-->>AS: ApiKey
+
+        AS->>JSP: Get SecretKey
+        JSP-->>AS: SecretKey
+
+        AS->>AS: GenerateToken(claims, secretKey)
+
+        AS-->>AC: AuthResponse(ApiKey, JwtToken, Role)
+        AC-->>C: 200 OK + AuthResponse
+    end

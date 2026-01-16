@@ -1,4 +1,8 @@
 ﻿using System.Text;
+using OSManager.Models;
+using OSManager.Service.Auth;
+using OSManager.Service.HistoryOS;
+using OSManager.Service.TimeService;
 
 namespace OSManager.Service.FileService;
 
@@ -6,13 +10,19 @@ public class FileService : IFileService
 {
     private readonly string _rootPath;
     ILogger<FileService> _logger;
-
-    public FileService(ILogger<FileService> logger)
+    private readonly IHistoryQueue _queue;
+    private readonly ICurrentUserService _currentUser;
+    private readonly ITimeService _timeService;
+    public FileService(ILogger<FileService> logger, IHistoryQueue queue,  ICurrentUserService currentUser, ITimeService timeService)
     {
+        _timeService = timeService;
         _logger = logger;
+        _queue = queue;
         _rootPath = Environment.GetEnvironmentVariable("MOUNT_ROOT") ?? "/hostroot";
-
+        _currentUser = currentUser;
     }
+    
+    
 
     public Task<string> CreateFileAsync(string relativePath)
     {
@@ -69,6 +79,15 @@ public class FileService : IFileService
             {
                 _logger.LogWarning("File already exists at {Path}", createdFullPath);
             }
+            
+            // Ghi log thao tác vào queue
+            _queue.Enqueue(new LogEntry
+            {
+                Action = "CreateFile",
+                Target = createdFullPath,
+                Details = "File created",
+                Timestamp = _timeService.GetVietnamNowOffset()
+            });
 
             // return relative path from root
             var relative = Path.GetRelativePath(_rootPath, createdFullPath).Replace(Path.DirectorySeparatorChar, '/');
@@ -77,6 +96,13 @@ public class FileService : IFileService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to create file at {Path}", relativePath);
+            _queue.Enqueue(new LogEntry
+            {
+                Action = "CreateFile",
+                Target = relativePath,
+                Details = $"Error: {ex.Message}",
+                Timestamp = _timeService.GetVietnamNowOffset()
+            });
             throw;
         }
     }
@@ -96,6 +122,13 @@ public class FileService : IFileService
 
             await File.WriteAllTextAsync(fullPath, newContent);
             _logger.LogInformation("Updated content of file at {Path}", fullPath);
+            _queue.Enqueue(new LogEntry
+            {
+                Action = "UpdateFile",
+                Target = fullPath,
+                Details = "File content updated",
+                Timestamp = _timeService.GetVietnamNowOffset()
+            });
         }
         catch (Exception ex)
         {
@@ -145,17 +178,32 @@ public class FileService : IFileService
                 }
             }
         }
+        _queue.Enqueue(new LogEntry
+        {
+            Action = "ReadFile",
+            Target = fullPath,
+            Details = "File content read",
+            Timestamp = _timeService.GetVietnamNowOffset()
+        });
 
         return sb.ToString();
     }
     catch (OperationCanceledException)
     {
         _logger.LogWarning("File read timed out (over 20s): {Path}", relativePath);
+        
         throw new InvalidOperationException("File quá lớn, không đọc được trong 20 giây.");
     }
     catch (Exception ex)
     {
         _logger.LogError(ex, "Failed to read file nano style: {Path}", relativePath);
+        _queue.Enqueue(new LogEntry
+        {
+            Action = "ReadFile",
+            Target = relativePath,
+            Details = "File quá lớn, không đọc được trong 20 giây.",
+            Timestamp = _timeService.GetVietnamNowOffset()
+        });
         throw;
     }
     }

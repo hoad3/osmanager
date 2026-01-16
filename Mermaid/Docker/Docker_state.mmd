@@ -1,0 +1,34 @@
+﻿stateDiagram
+    [*] --> Idle : DockerService khởi tạo
+
+    Idle --> Ready : Khởi tạo DockerClient, thiết lập SSH & Storage
+
+    Ready --> FetchImages : GetAllImagesAsync()
+    Ready --> FetchContainers : GetAllContainersAsync()
+    Ready --> StartContainers : StartContainersAsync()
+    Ready --> StopContainers : StopContainersAsync()
+    Ready --> LoadImage : LoadImageFromTarAsync()
+    Ready --> RemoveImage : RemoveImageByNameAsync()
+
+    StartContainers --> SSHConnect : Tạo SSHClient
+    SSHConnect --> RunDockerComposeUp : Chạy docker compose up
+    RunDockerComposeUp --> SaveContainerData : Lưu container info qua StorageService
+    SaveContainerData --> SSHDisconnect : Ngắt SSH
+    SSHDisconnect --> Ready
+
+    StopContainers --> FetchContainerData : Lấy directoryPath từ StorageService
+    FetchContainerData --> SSHConnectStop : Tạo SSHClient
+    SSHConnectStop --> RunDockerComposeDown : Chạy docker compose down
+    RunDockerComposeDown --> DeleteContainerData : Xóa container info từ StorageService
+    DeleteContainerData --> SSHDisconnectStop : Ngắt SSH
+    SSHDisconnectStop --> Ready
+
+    LoadImage --> SSHConnectLoad : Tạo SSHClient
+    SSHConnectLoad --> RunDockerLoad : Chạy docker load
+    RunDockerLoad --> SSHDisconnectLoad : Ngắt SSH
+    SSHDisconnectLoad --> Ready
+
+    RemoveImage --> SSHConnectRemove : Tạo SSHClient
+    SSHConnectRemove --> RunDockerRmi : Chạy docker rmi
+    RunDockerRmi --> SSHDisconnectRemove : Ngắt SSH
+    SSHDisconnectRemove --> Ready

@@ -1,0 +1,31 @@
+﻿sequenceDiagram
+    participant Client
+    participant Controller
+    participant DockerService
+    participant StorageService
+    participant SSH as SSHServer
+
+    Client->>Controller: StartContainer(req)
+    Controller->>DockerService: StartContainersAsync(directory, key)
+    DockerService->>SSH: Connect
+    DockerService->>SSH: docker compose up
+    SSH-->>DockerService: Output
+    DockerService->>SSH: docker compose ps -q
+    SSH-->>DockerService: container IDs
+    DockerService->>SSH: docker inspect containerId
+    SSH-->>DockerService: containerData
+    DockerService->>StorageService: SaveDockerContainerData(containerId, containerData)
+    DockerService->>SSH: Disconnect
+    DockerService-->>Controller: Output
+    Controller-->>Client: Success message
+
+    Client->>Controller: StopContainer(req)
+    Controller->>DockerService: StopContainersAsync(containerId, key)
+    DockerService->>StorageService: GetAllDockerContainers()
+    DockerService->>SSH: Connect
+    DockerService->>SSH: docker compose down
+    SSH-->>DockerService: Output
+    DockerService->>StorageService: DeleteDockerContainerData(containerId)
+    DockerService->>SSH: Disconnect
+    DockerService-->>Controller: Output
+    Controller-->>Client: Success message

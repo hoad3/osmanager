@@ -1,7 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using OSManager.Service.FileService;
 
 namespace OSManager.API;
+[Authorize]
 [Route("api/[controller]")]
 public class FileController:ControllerBase
 {

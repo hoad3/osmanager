@@ -1,0 +1,69 @@
+﻿sequenceDiagram
+    autonumber
+    actor SYS as System
+
+    SYS ->> DailyHistoryMailService: StartAsync()
+    DailyHistoryMailService ->> DailyHistoryMailService: ScheduleNextRun()
+
+%% --- Timer trigger ---
+    SYS ->> DailyHistoryMailService: Timer Trigger
+    DailyHistoryMailService ->> DailyHistoryMailService: RunDailyTask()
+
+    DailyHistoryMailService ->> TimeService: GetVietnamNow()
+    TimeService -->> DailyHistoryMailService: now
+
+%% --- Load logs ---
+    DailyHistoryMailService ->> HistoryReportService: LoadTodayLogsAsync(now)
+    activate HistoryReportService
+
+    HistoryReportService ->> FileSystem: Check history_yyyyMMdd.json
+    FileSystem -->> HistoryReportService: Exists / Not Exists
+
+    HistoryReportService ->> MiddlewareStorage: DecryptFromFile()
+    MiddlewareStorage -->> HistoryReportService: decrypted JSON
+
+    HistoryReportService ->> JsonSerializer: Deserialize logs
+    JsonSerializer -->> HistoryReportService: List<LogEntry>
+    deactivate HistoryReportService
+
+    DailyHistoryMailService -->> DailyHistoryMailService: logs
+
+    alt No logs today
+        DailyHistoryMailService ->> Console: "Không có log history hôm nay"
+    else Logs exist
+    %% --- Send Report Email ---
+        DailyHistoryMailService ->> HistoryReportService: SendReportEmailAsync(logs, now)
+        activate HistoryReportService
+
+    %% --- Export Excel ---
+        HistoryReportService ->> HistoryReportService: ExportExcelAsync()
+        HistoryReportService ->> ClosedXML: Create workbook + sheet
+        ClosedXML -->> HistoryReportService: Excel OK
+        HistoryReportService ->> FileSystem: SaveAs(history_yyyyMMdd.xlsx)
+        FileSystem -->> HistoryReportService: OK
+
+    %% --- Get user list ---
+        HistoryReportService ->> StorageService: GetAllUsers()
+        StorageService -->> HistoryReportService: user list
+
+        loop For each user
+            HistoryReportService ->> MailService: SendEmailAsync(user.Email, subject, body, excel)
+            activate MailService
+
+            MailService ->> MimeKit: Build email
+            MailService ->> SmtpClient: ConnectAsync()
+            MailService ->> SmtpClient: AuthenticateAsync()
+            MailService ->> SmtpClient: SendAsync()
+            SmtpClient -->> MailService: OK
+            MailService ->> SmtpClient: DisconnectAsync()
+
+            deactivate MailService
+
+            HistoryReportService ->> HistoryQueue: Enqueue(LogEntry{Send Email})
+            HistoryQueue -->> HistoryReportService: OK
+        end
+
+        deactivate HistoryReportService
+
+        DailyHistoryMailService ->> Console: "Daily History Mail Service đã chạy..."
+    end

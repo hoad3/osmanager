@@ -10,7 +10,13 @@ import FolderModalsComponent from "../FolderComponent/FolderModalsComponent";
 import FolderListComponent from "../FolderComponent/FolderListComponent";
 import DeleteControlComponent from "../FolderComponent/DeleteControlComponent";
 import type { HubConnection } from "@microsoft/signalr";
-const DirectoryComponent: React.FC = () => {
+import {getAuthTokens} from "../../Store/Slices/AuthSlice/AuthSlice.tsx";
+
+interface DirectoryComponentProps {
+    onSelectFolder?: (path: string) => void;
+    hideActions?: boolean; // nếu muốn ẩn nút
+}
+const DirectoryComponent: React.FC<DirectoryComponentProps> = ({ onSelectFolder}) => {
     const { items, loading, scanRoot, browsePath, error } = useDirectoryStore();
     const [currentPath, setCurrentPath] = useState<string>("");
     const [, setOpenMenu] = useState<string | null>(null); 
@@ -31,6 +37,13 @@ const DirectoryComponent: React.FC = () => {
     const [showCopyModal, setShowCopyModal] = useState(false);
     const connectionRef = useRef<HubConnection | null>(null);
 
+    const tokens = getAuthTokens();
+
+    const requireRoot = () => {
+        if (!tokens) throw new Error("Bạn chưa đăng nhập");
+        if (tokens.role !== "root") throw new Error("Bạn không có quyền");
+    };
+    
     const [clipboard, setClipboard] = useState<{
         items: string[];
         mode: 'copy' | 'cut' | null;
@@ -60,10 +73,12 @@ const DirectoryComponent: React.FC = () => {
             const newPath = currentPath ? `${currentPath}/${item.name}` : item.name;
             browsePath(newPath);
             setCurrentPath(newPath);
+            if (onSelectFolder) onSelectFolder(newPath);
         }
     };
 
     const handleCreateFolder = async () => {
+        requireRoot();
         setCreateError(null);
         const name = newFolderName?.trim();
         if (!name) {
@@ -113,12 +128,14 @@ const DirectoryComponent: React.FC = () => {
         setCurrentPath(parentPath);
     };
     const handleDeleteMode = () => {
+        requireRoot();
         setIsDeleteMode(!isDeleteMode);
         if (isDeleteMode) {
             setSelectedItems(new Set());
         }
     };
     const handleItemSelect = (itemPath: string, event: React.MouseEvent) => {
+        requireRoot();
         event.stopPropagation();
         setSelectedItems(prev => {
             const newSet = new Set(prev);
@@ -131,6 +148,7 @@ const DirectoryComponent: React.FC = () => {
         });
     };
     const handleSelectAll = () => {
+        requireRoot();
         if (selectedItems.size === items.length) {
             setSelectedItems(new Set());
         } else {
@@ -138,6 +156,7 @@ const DirectoryComponent: React.FC = () => {
         }
     };
     const handleDeleteSelected = async () => {
+        requireRoot()
         if (selectedItems.size === 0) return;
         
         setIsDeleting(true);
@@ -168,9 +187,11 @@ const DirectoryComponent: React.FC = () => {
         }
     };
     const handleRenameMode = () => {
+        requireRoot();
         setIsRenameMode(!isRenameMode);
     };
     const handleRenameClick = (item: any, event: React.MouseEvent) => {
+        requireRoot();
         event.stopPropagation();
         setRenameItem({ path: item.fullPath, name: item.name });
         setNewName(item.name);
@@ -178,6 +199,7 @@ const DirectoryComponent: React.FC = () => {
         setShowRenameModal(true);
     };
     const handleRename = async () => {
+        requireRoot();
         if (!renameItem || !newName.trim()) {
             setRenameError("Tên mới không được để trống");
             return;
@@ -227,11 +249,13 @@ const DirectoryComponent: React.FC = () => {
 
     // Copy/Cut/Paste handlers
     const handleCopySelected = () => {
+        requireRoot()
         // Mở modal chọn thư mục để copy từ danh sách hiện tại
         setShowCopyModal(true);
     };
 
     const handleCutSelected = () => {
+        requireRoot();
         if (selectedItems.size === 0) return;
         setClipboard({
             items: Array.from(selectedItems),
@@ -246,6 +270,7 @@ const DirectoryComponent: React.FC = () => {
     };
 
     const handlePasteClipboard = async () => {
+        requireRoot();
         if (!clipboard.mode || clipboard.items.length === 0) return;
         if (!currentPath && currentPath !== "") return; 
         const destinationPath = currentPath || "";

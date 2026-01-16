@@ -4,7 +4,9 @@
     {
         public string Username { get; set; } = "";
         public string? Password { get; set; } // VPS password (optional)
-
+        // public string payload { get; set; } = string.Empty;
+        public string Iv { get; set; } = string.Empty;
+        public string Cipher { get; set; } = string.Empty;
     }
 
     public class LoginSSHKetRequest

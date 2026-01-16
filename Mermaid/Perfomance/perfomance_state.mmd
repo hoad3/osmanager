@@ -1,0 +1,41 @@
+﻿stateDiagram
+    [*] --> ServiceIdle : Service start
+
+%% MonitoringBackgroundService states
+    state MonitoringBackgroundService {
+        ServiceIdle --> ReadingMetrics : ExecuteAsync running
+        ReadingMetrics --> BroadcastingMetrics : Read metrics via PerformanceReaderService
+        BroadcastingMetrics --> WaitingDelay : Send via SignalR (PerformanceHub)
+        WaitingDelay --> ReadingMetrics : Wait 1s loop
+        ReadingMetrics --> ErrorHandling : Exception occurs
+        ErrorHandling --> WaitingDelay : Log + Wait 1s
+    }
+
+%% PerformanceHub states
+    state PerformanceHub {
+        HubIdle --> WaitingForSubscribe : Hub started
+        WaitingForSubscribe --> ClientSubscribed : Client calls Subscribe()
+        ClientSubscribed --> SendingMetrics : Read metrics via PerformanceReaderService
+        SendingMetrics --> WaitingForSubscribe : Metrics sent to client
+    }
+
+%% ApiKeyMiddleware states
+    state ApiKeyMiddleware {
+        MiddlewareIdle --> CheckRequestPath : InvokeAsync
+        CheckRequestPath --> ForwardPublicRequest : Path public
+        CheckRequestPath --> ValidateApiKey : Path requires API key
+        ValidateApiKey --> ApiKeyValid : API key valid
+        ValidateApiKey --> ApiKeyInvalid : API key invalid/missing
+        ApiKeyValid --> ForwardRequest : Forward request
+        ApiKeyInvalid --> Respond401 : Respond with 401
+    }
+
+%% PerformanceReaderService as utility state
+    state PerformanceReaderService {
+        [*] --> ReadMetrics : Read CPU/RAM/Disk
+        ReadMetrics --> [*]
+    }
+
+%% Linking Monitoring service with Reader
+    BroadcastingMetrics --> PerformanceReaderService : Read()
+    ClientSubscribed --> PerformanceReaderService : Read()

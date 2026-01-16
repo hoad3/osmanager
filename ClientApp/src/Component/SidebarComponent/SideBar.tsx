@@ -6,8 +6,7 @@ import { CiServer } from "react-icons/ci";
 import { LiaDocker } from "react-icons/lia";
 import { LuContainer } from "react-icons/lu";
 import { HiMiniCubeTransparent } from "react-icons/hi2";
-import {FaRegUserCircle } from "react-icons/fa";
-
+import {FaHistory,FaRegUserCircle } from "react-icons/fa";
 
 interface NavItem {
     name: string;
@@ -19,6 +18,9 @@ const hostItems: NavItem[] = [
     { name: 'Home', path: '/home', icon: IoHome },
     { name: 'Quản lý thư mục', path: '/directory', icon: FaFolderClosed },
     { name: 'Quản lý User', path: '/user', icon: FaRegUserCircle },
+    { name: 'Theo dõi lịch sử', path: '/history', icon: FaHistory },
+
+
 ];
 
 const dockerItems: NavItem[] = [

@@ -35,7 +35,7 @@ public class MonitoringBackgroundService : BackgroundService
             catch (Exception ex)
             {
                 _logger.LogError($"Error in monitoring service: {ex.Message}");
-                await Task.Delay(1000, stoppingToken); // Still delay on error
+                await Task.Delay(1000, stoppingToken); 
             }
         }
     }

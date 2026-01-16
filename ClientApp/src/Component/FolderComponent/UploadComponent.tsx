@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { uploadFiles } from '../../Hubs/UploadHubs/UploadHubs';
+import {getAuthTokens} from "../../Store/Slices/AuthSlice/AuthSlice.tsx";
 
 type UploadComponentProps = {
     currentPath?: string;
@@ -11,8 +12,14 @@ const UploadComponent: React.FC<UploadComponentProps> = ({ currentPath = '', onU
     const [uploading, setUploading] = useState(false);
     const [statusMap, setStatusMap] = useState<Record<string, string>>({});
     const fileInputRef = useRef<HTMLInputElement | null>(null);
+    const tokens = getAuthTokens();
 
+    const requireRoot = () => {
+        if (!tokens) throw new Error("Bạn chưa đăng nhập");
+        if (tokens.role !== "root") throw new Error("Bạn không có quyền");
+    };
     const handleFileSelection = (files: FileList | null) => {
+        requireRoot()
         if (!files) return;
         const arr = Array.from(files);
         setSelectedFiles(arr);
@@ -22,6 +29,7 @@ const UploadComponent: React.FC<UploadComponentProps> = ({ currentPath = '', onU
     };
 
     const doUpload = async () => {
+        requireRoot()
         if (selectedFiles.length === 0) return;
         setUploading(true);
 

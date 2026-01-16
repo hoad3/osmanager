@@ -3,6 +3,10 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
+using OSManager.Models;
+using OSManager.Service.Auth;
+using OSManager.Service.HistoryOS;
+using OSManager.Service.TimeService;
 
 namespace OSManager.Service.FolderService;
 
@@ -10,10 +14,17 @@ public class FolderService : IFolderService
 {
     private readonly string _rootPath;
     ILogger<FolderService> _logger;
-    public FolderService(ILogger<FolderService> logger)
+    private readonly IHistoryQueue _queue;
+    private readonly ICurrentUserService _currentUser;
+    private readonly ITimeService _timeService;
+    public FolderService(ILogger<FolderService> logger, IHistoryQueue queue, ICurrentUserService currentUser, ITimeService timeService)
     {
+        _timeService = timeService;
         _rootPath = Environment.GetEnvironmentVariable("MOUNT_ROOT") ?? "/hostroot";
         _logger = logger;
+        _queue = queue;
+        _currentUser = currentUser;
+
     }
     private string NormalizePathToRoot(string inputPath)
     {
@@ -47,11 +58,25 @@ public class FolderService : IFolderService
             var safePath = relativePath.TrimStart('/');
             var fullPath = Path.Combine(_rootPath, safePath);
             Directory.CreateDirectory(fullPath);
+            _queue.Enqueue(new LogEntry
+            {
+                Action = "Tạo File/Folder",
+                Target = fullPath,
+                Details = $"Tạo File/Folder thành công: {fullPath}",
+                Timestamp = _timeService.GetVietnamNowOffset()
+            });
             _logger.LogInformation("Created directory at {Path}", fullPath);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to create directory at {Path}", relativePath);
+            _queue.Enqueue(new LogEntry
+            {
+                Action = "Tạo File/Folder",
+                Target = relativePath,
+                Details = $"Tạo File/Folder thất bại: {relativePath}",
+                Timestamp = _timeService.GetVietnamNowOffset()
+            });
             throw;
         }
 
@@ -69,12 +94,28 @@ public class FolderService : IFolderService
                 if (File.Exists(full))
                 {
                     File.Delete(full);
+                    _queue.Enqueue(new LogEntry
+                    {
+                        Action = "Xóa File",
+                        Target = full,
+                        Details = $"Xóa File thành công: {full}",
+                        Timestamp = _timeService.GetVietnamNowOffset()
+                    });
                     _logger.LogInformation("Deleted file at {Path}", full);
                 }
                 else if (Directory.Exists(full))
                 {
                     if (recursive)
+                    {
                         Directory.Delete(full, true);
+                        _queue.Enqueue(new LogEntry
+                        {
+                            Action = "Xóa Folder",
+                            Target = full,
+                            Details = $"Xóa Folder thành công: {full}",
+                            Timestamp = _timeService.GetVietnamNowOffset()
+                        });
+                    }
                     else
                     {
                         var entries = Directory.EnumerateFileSystemEntries(full);
@@ -100,36 +141,89 @@ public class FolderService : IFolderService
     public Task RenameAsync(string path, string newName)
     {
         var full = NormalizePathToRoot(path);
-        if (!Directory.Exists(full))
-            throw new DirectoryNotFoundException($"Folder not found: {full}");
 
-        var parent = Path.GetDirectoryName(full) ?? throw new InvalidOperationException("Invalid folder path");
+        var parent = Path.GetDirectoryName(full) 
+                     ?? throw new InvalidOperationException("Invalid path");
+
         var dest = Path.Combine(parent, newName);
         dest = Path.GetFullPath(dest);
 
         return Task.Run(() =>
         {
-            if (Directory.Exists(dest))
-                throw new IOException($"Destination already exists: {dest}");
-            Directory.Move(full, dest);
+            if (Directory.Exists(full))
+            {
+                if (Directory.Exists(dest))
+                    throw new IOException($"Destination folder already exists: {dest}");
+
+                Directory.Move(full, dest);
+            }
+            else if (File.Exists(full))
+            {
+                if (File.Exists(dest))
+                    throw new IOException($"Destination file already exists: {dest}");
+
+                File.Move(full, dest);
+            }
+            else
+            {
+                throw new FileNotFoundException($"File or folder not found: {full}");
+            }
+
+            _queue.Enqueue(new LogEntry
+            {
+                Action = "Đổi tên File/Folder",
+                Target = full,
+                Details = $"Đổi tên thành: {dest}",
+                Timestamp = _timeService.GetVietnamNowOffset()
+            });
         });
     }
     public Task CopyAsync([FromQuery] string sourcePath, [FromQuery] string destinationPath, [FromQuery] bool overwrite = false, [FromQuery] bool includeRoot = true)
     {
         var src = NormalizePathToRoot(sourcePath);
-        var dst = NormalizePathToRoot(destinationPath);
-
-        if (!Directory.Exists(src))
-            throw new DirectoryNotFoundException($"Source folder not found: {src}");
-
+        var dstRoot = NormalizePathToRoot(destinationPath);
+        bool isFile = File.Exists(src);
+        bool isDirectory = Directory.Exists(src);
+        if (!isFile && !isDirectory)
+            throw new FileNotFoundException($"Source not found: {src}");
         return Task.Run(() =>
-        { 
-            var finalDst = includeRoot
-                ? Path.Combine(dst, new DirectoryInfo(src).Name)
-                : dst;
+        {
+            if (isFile)
+            {
+                if (!Directory.Exists(dstRoot))
+                    throw new DirectoryNotFoundException($"Destination folder not found: {dstRoot}");
+                var targetFile = Path.Combine(dstRoot, Path.GetFileName(src));
 
-            Directory.CreateDirectory(finalDst);
-            CopyDirectoryContents(src, finalDst, overwrite);
+                if (File.Exists(targetFile))
+                {
+                    if (overwrite)
+                        File.Delete(targetFile);
+                    else
+                        throw new IOException($"Destination file already exists: {targetFile}");
+                }
+                File.Copy(src, targetFile, overwrite);
+                _queue.Enqueue(new LogEntry
+                {
+                    Action = "Copy File",
+                    Target = $"{src} ==> {targetFile}",
+                    Details = "Copy file thành công",
+                    Timestamp = _timeService.GetVietnamNowOffset()
+                });
+                return;
+            }
+            var sourceFolderName = new DirectoryInfo(src).Name;
+            var dstFinal = includeRoot
+                ? Path.Combine(dstRoot, sourceFolderName)
+                : dstRoot;
+            Directory.CreateDirectory(dstFinal);
+            CopyDirectoryContents(src, dstFinal, overwrite);
+            _queue.Enqueue(new LogEntry
+            {
+                Action = "Copy Folder",
+                Target = $"{src} ==> {dstFinal}",
+                Details = "Copy folder thành công",
+                Timestamp = _timeService.GetVietnamNowOffset()
+            });
         });
     }
     public Task MoveAsync(string sourcePath, string destinationPath, bool overwrite = false)

@@ -1,9 +1,10 @@
 ﻿using OSManager.API.Models;
+using OSManager.Models;
 
 namespace OSManager.Service.Auth;
 
 public interface IAuthService
 {
-    Task<AuthResponse?> LoginWithPasswordAsync(string username, string password);
-    Task<AuthResponse?> LoginWithSshKeyAsync(string username, string sshPrivateKey, string? sshKeyPassphrase);
+    Task<AuthResult> LoginWithPasswordAsync(string username, string password);
+    Task<AuthResult> LoginWithSshKeyAsync(string username, string sshPrivateKey, string? sshKeyPassphrase);
 }

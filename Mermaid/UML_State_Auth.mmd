@@ -1,0 +1,32 @@
+﻿stateDiagram-v2
+    direction LR
+
+    [*] --> Idle : Start
+
+    Idle --> Authenticating : LoginWithPasswordAsync / LoginWithSshKeyAsync
+
+    Authenticating --> AuthenticationSuccess : Authentication OK
+    Authenticating --> AuthenticationFailed : Authentication Fail
+
+    AuthenticationSuccess --> End : Return AuthResponse
+    AuthenticationFailed --> End : Return null
+
+%% Authentication process states
+    state Authenticating {
+        direction LR
+        PasswordAuth --> AuthComplete
+        SSHKeyAuth --> AuthComplete
+        [*] --> PasswordAuth
+        [*] --> SSHKeyAuth
+        AuthComplete --> [*]
+    }
+
+%% Post-success actions
+    state AuthenticationSuccess {
+        direction TB
+        [*] --> GenerateApiKey
+        GenerateApiKey --> BuildClaims
+        BuildClaims --> GenerateJWT
+        GenerateJWT --> DetermineRole
+        DetermineRole --> [*]
+    }

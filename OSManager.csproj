@@ -31,6 +31,8 @@
     </ItemGroup>
 
     <ItemGroup>
+      <Folder Include="ClientApp\src\Component\TicketComponent\" />
+      <Folder Include="data\" />
       <Folder Include="src\Helper\" />
       <Folder Include="wwwroot\" />
     </ItemGroup>

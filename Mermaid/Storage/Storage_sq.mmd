@@ -1,0 +1,38 @@
+﻿sequenceDiagram
+    participant Client
+    participant StorageService
+    participant MiddlewareStorage
+
+    Client->>StorageService: LogBatch(logs)
+    StorageService->>MiddlewareStorage: DecryptFromFile(existing log file)
+    MiddlewareStorage-->>StorageService: Return decrypted logs
+    StorageService->>StorageService: Append new logs
+    StorageService->>MiddlewareStorage: EncryptToFile(updated log file)
+    MiddlewareStorage-->>StorageService: OK
+    StorageService->>StorageService: CleanupOldHistoryFiles()
+
+    Client->>StorageService: LogUserInformation(username, data)
+    StorageService->>MiddlewareStorage: DecryptFromFile(user file)
+    MiddlewareStorage-->>StorageService: Return decrypted user data
+    StorageService->>StorageService: Merge with new data
+    StorageService->>MiddlewareStorage: EncryptToFile(user file)
+    MiddlewareStorage-->>StorageService: OK
+
+    Client->>StorageService: DeleteUserInformation(username)
+    StorageService->>StorageService: Check file exists
+    StorageService->>FileSystem: Delete file
+    FileSystem-->>StorageService: OK
+
+    Client->>StorageService: SaveDockerContainerData(id, data)
+    StorageService->>MiddlewareStorage: EncryptToFile(container file)
+    MiddlewareStorage-->>StorageService: OK
+
+    Client->>StorageService: GetAllUsers()
+    StorageService->>MiddlewareStorage: DecryptFromFile(user files)
+    MiddlewareStorage-->>StorageService: Return user data
+    StorageService-->>Client: List<Dictionary<string, object>>
+
+    Client->>StorageService: GetAllDockerContainers()
+    StorageService->>MiddlewareStorage: DecryptFromFile(container files)
+    MiddlewareStorage-->>StorageService: Return container data
+    StorageService-->>Client: List<Dictionary<string, object>>

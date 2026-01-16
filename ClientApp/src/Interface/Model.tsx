@@ -45,6 +45,36 @@ export interface FileUploadModel {
     fileStream: Blob;
     isFolder?: boolean; 
 }
+export interface HistoryEntry {
+    id: string;
+    timestamp: string;
+    action: string;
+    target: string;
+    details: string;
+}
 
+export interface UserForm {
+    username: string;
+    password?: string;
+    isRoot?: boolean;
+    canUseDocker?: boolean;
+    CanUseOSManager?: boolean;
+    allowedDirectories?: string[];
+    sshPrivateKeyFile?: File | null;
+    sshPrivateKeyPassphrase?: string;
+    email?: string;
+}
+
+export interface UserFormState {
+    username: string;
+    password?: string;
+    isRoot?: boolean;
+    canUseDocker?: boolean;
+    CanUseOSManager?: boolean;
+    allowedDirectories?: string[];
+    sshPrivateKeyFile?: File | null;
+    sshPrivateKeyPassphrase?: string;
+    email?: string;
+}
 
 

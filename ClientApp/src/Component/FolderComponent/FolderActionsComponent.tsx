@@ -3,9 +3,10 @@ import { FileCreateHubs } from '../../Hubs/FileHubs/FileHubs';
 import { IoAddOutline } from "react-icons/io5";
 import { RiDeleteBin6Line } from "react-icons/ri";
 import { FaRegCopy } from "react-icons/fa6";
-import { MdOutlineContentCut, MdDriveFileRenameOutline } from "react-icons/md";
+import { MdDriveFileRenameOutline } from "react-icons/md";
 import { IoCloudUploadOutline } from "react-icons/io5";
 import {useUploadStore} from "../../Store/Slices/UploadSlice/UploadSlice.ts";
+import {getAuthTokens} from "../../Store/Slices/AuthSlice/AuthSlice.tsx";
 
 interface FolderActionsProps {
     showCreateMenu: boolean;
@@ -37,7 +38,7 @@ const FolderActionsComponent: React.FC<FolderActionsProps> = ({
     isRenameMode,
     handleRenameMode,
     onCopySelected,
-    onCutSelected,
+    // onCutSelected,
     onPasteClipboard,
     onCancelClipboard,
     canPaste = false,
@@ -53,7 +54,13 @@ const FolderActionsComponent: React.FC<FolderActionsProps> = ({
     const fileInputRef = useRef<HTMLInputElement | null>(null);
     const { uploading, success, uploadFiles } = useUploadStore();
     const [showDropZone, setShowDropZone] = useState(false);
+    const tokens = getAuthTokens();
+    const requireRoot = () => {
+        if (!tokens) throw new Error("Bạn chưa đăng nhập");
+        if (tokens.role !== "root") throw new Error("Bạn không có quyền");
+    };
     const handleFilesSelected = async (filesList: FileList | null) => {
+        requireRoot()
         const files = filesList ? Array.from(filesList) : [];
         if (files.length === 0) return;
         setSelectedFiles(files);
@@ -224,20 +231,20 @@ const FolderActionsComponent: React.FC<FolderActionsProps> = ({
             </div>
 
             {/* Cut button */}
-            <div className="relative mr-10">
-                <button
-                    onClick={onCutSelected}
-                    disabled={!canCopyOrCut}
-                    className={`flex-shrink-0 w-28 flex justify-center items-center flex-row h-8 border-2 rounded-2xl ${canCopyOrCut ? 'border-gray-100' : 'border-gray-500 opacity-50 cursor-not-allowed'}`}
-                    aria-haspopup="true"
-                    aria-expanded={showCreateMenu}
-                >
-                    <MdOutlineContentCut className='h-6 w-6 font-bold text-gray-100'/>
-                    <div className='text-gray-100 font-bold flex justify-center items-center ml-2'>
-                        Cut
-                    </div>
-                </button>
-            </div>
+            {/*<div className="relative mr-10">*/}
+            {/*    <button*/}
+            {/*        onClick={onCutSelected}*/}
+            {/*        disabled={!canCopyOrCut}*/}
+            {/*        className={`flex-shrink-0 w-28 flex justify-center items-center flex-row h-8 border-2 rounded-2xl ${canCopyOrCut ? 'border-gray-100' : 'border-gray-500 opacity-50 cursor-not-allowed'}`}*/}
+            {/*        aria-haspopup="true"*/}
+            {/*        aria-expanded={showCreateMenu}*/}
+            {/*    >*/}
+            {/*        <MdOutlineContentCut className='h-6 w-6 font-bold text-gray-100'/>*/}
+            {/*        <div className='text-gray-100 font-bold flex justify-center items-center ml-2'>*/}
+            {/*            Cut*/}
+            {/*        </div>*/}
+            {/*    </button>*/}
+            {/*</div>*/}
             {canPaste && (
                 <div className="relative mr-10">
                     <button

@@ -1,5 +1,4 @@
 import React from 'react';
-
 interface CreateFolderModalProps {
     show: boolean;
     newFolderName: string;
@@ -29,7 +28,7 @@ const CreateFolderModal: React.FC<CreateFolderModalProps> = ({
     onCreate
 }) => {
     if (!show) return null;
-
+  
     return (
         <div className="fixed inset-0 flex items-center justify-center z-50">
             <div className="absolute inset-0 bg-black opacity-50" onClick={onClose}/>
@@ -182,6 +181,7 @@ const FolderModalsComponent: React.FC<FolderModalsProps> = ({
         if (!show) return null;
 
         const onlyFolders = candidates.filter(c => c.isDirectory);
+        const items = candidates;
         const allSelected = selected.size === onlyFolders.length && onlyFolders.length > 0;
 
         const toggle = (p: string) => {
@@ -203,16 +203,16 @@ const FolderModalsComponent: React.FC<FolderModalsProps> = ({
             <div className="fixed inset-0 flex items-center justify-center z-50">
                 <div className="absolute inset-0 bg-black opacity-50" onClick={onCancel}/>
                 <div className="relative bg-slate-800 p-6 rounded-lg w-[560px] max-h-[70vh] overflow-auto">
-                    <h3 className="text-lg font-bold text-gray-100 mb-4">Chọn thư mục để copy</h3>
+                    <h3 className="text-lg font-bold text-gray-100 mb-4">Chọn thư mục hoặc file để copy</h3>
                     <div className="flex items-center mb-3">
                         <input type="checkbox" className="mr-2" checked={allSelected} onChange={toggleAll} />
                         <span className="text-gray-200 text-sm">Chọn tất cả thư mục</span>
                     </div>
                     <ul className="space-y-1">
-                        {onlyFolders.length === 0 && (
+                        {items.length === 0 && (
                             <li className="text-gray-400 text-sm">Không có thư mục nào trong vị trí hiện tại</li>
                         )}
-                        {onlyFolders.map((c) => (
+                        {items.map((c) => (
                             <li key={c.path} className="flex items-center text-gray-100">
                                 <input
                                     type="checkbox"
@@ -220,7 +220,9 @@ const FolderModalsComponent: React.FC<FolderModalsProps> = ({
                                     checked={selected.has(c.path)}
                                     onChange={() => toggle(c.path)}
                                 />
-                                <span className="truncate">📁 {c.name}</span>
+                                <span className="truncate">
+                                    {c.isDirectory ? "📁" : "📄"} {c.name}
+                                </span>
                             </li>
                         ))}
                     </ul>

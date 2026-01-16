@@ -21,7 +21,6 @@ public class ApiKeyMiddleware
             await _next(context);
             return;
         }
-        // Kiểm tra cả negotiate endpoint của SignalR
         if (path != null && (
                 path == "/" ||
                 path.StartsWith("/swagger", StringComparison.OrdinalIgnoreCase) ||

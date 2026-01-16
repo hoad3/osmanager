@@ -1,16 +1,20 @@
-﻿
-
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { dockerHubsContainer } from '../../Hubs/DockerHubs/DockerHubs';
 import type {ContainerItem} from "../../Interface/Model.tsx";
 import {LuContainer} from "react-icons/lu";
-
+import AddContainerModal from "./AddContainerModal.tsx";
+import {useDockerStore} from "../../Store/Slices/DockerSlice/DockerSlice.ts";
+import DeleteContainerModal from "./DeleteContainerModal.tsx";
 
 const DockerContainerComponent: React.FC = () => {
     const [containers, setContainers] = useState<ContainerItem[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-
+    const { stopContainer,startContainer } = useDockerStore();
+    const [isAddContainerOpen, setIsAddContainerOpen] = useState(false);
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [, setSelectedContainer] = useState<ContainerItem | null>(null);
+   
     const fetchContainers = async () => {
         setLoading(true);
         setError(null);
@@ -31,7 +35,6 @@ const DockerContainerComponent: React.FC = () => {
             setLoading(false);
         }
     };
-
     useEffect(() => {
         fetchContainers();
     }, []);
@@ -54,16 +57,65 @@ const DockerContainerComponent: React.FC = () => {
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center">
-                    <LuContainer className="text-blue-400 h-8 w-8 mr-3" />
+                    <LuContainer className="text-blue-400 h-8 w-8 mr-3"/>
                     <h1 className="text-2xl font-semibold">Docker Containers</h1>
                 </div>
-                <button
-                    onClick={fetchContainers}
-                    disabled={loading}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
-                >
-                    {loading ? "Đang tải..." : "Refresh"}
-                </button>
+                <div>
+                    <button
+                        onClick={fetchContainers}
+                        disabled={loading}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 mr-10"
+                    >
+                        {loading ? "Đang tải..." : "Refresh"}
+                    </button>
+
+                    <button
+                        onClick={() => setIsAddContainerOpen(true)}
+                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                    >
+                        Tạo Container
+                    </button>
+                </div>
+
+
+                <AddContainerModal
+                    isOpen={isAddContainerOpen}
+                    onClose={() => setIsAddContainerOpen(false)}
+                    onSubmit={async (folderPath, sshKeyFile, passphrase) => {
+                        const formData = new FormData();
+                        formData.append("DirectoryPath", folderPath);
+                        formData.append("SshKeyFile", sshKeyFile);
+                        if (passphrase) formData.append("Passphrase", passphrase);
+
+                        try {
+                            await startContainer(formData);
+                            fetchContainers();              
+                        } catch (err) {
+                            console.error("Error starting container:", err);
+                        } finally {
+                            setIsAddContainerOpen(false);
+                        }
+                    }}
+                />
+                <DeleteContainerModal
+                    isOpen={isDeleteModalOpen}
+                    onClose={() => setIsDeleteModalOpen(false)}
+                    onSubmit={async (folderPath, sshKeyFile, passphrase) => {
+                        const formData = new FormData();
+                        formData.append("DirectoryPath", folderPath);
+                        formData.append("SshKeyFile", sshKeyFile);
+                        if (passphrase) formData.append("Passphrase", passphrase);
+
+                        try {
+                            await stopContainer(formData);
+                            fetchContainers();
+                        } catch (err) {
+                            console.error("Error starting container:", err);
+                        } finally {
+                            setIsAddContainerOpen(false);
+                        }
+                    }}
+                />
             </div>
 
             {/* Error */}
@@ -84,11 +136,13 @@ const DockerContainerComponent: React.FC = () => {
                     <table className="min-w-full divide-y divide-gray-700">
                         <thead className="bg-gray-700">
                         <tr>
+                            <th className="px-6 py-3 text-left text-sm font-semibold text-gray-300">ID</th>
                             <th className="px-6 py-3 text-left text-sm font-semibold text-gray-300">Tên</th>
                             <th className="px-6 py-3 text-left text-sm font-semibold text-gray-300">Image</th>
                             <th className="px-6 py-3 text-left text-sm font-semibold text-gray-300">Trạng thái</th>
                             <th className="px-6 py-3 text-left text-sm font-semibold text-gray-300">Ports</th>
                             <th className="px-6 py-3 text-left text-sm font-semibold text-gray-300">Ngày tạo</th>
+                            <th className="px-6 py-3 text-left text-sm font-semibold text-gray-300">Xóa</th>
                         </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-700">
@@ -97,12 +151,16 @@ const DockerContainerComponent: React.FC = () => {
                                 key={c.id}
                                 className="hover:bg-gray-700/50 transition-colors"
                             >
+                                <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-300">
+                                    {c.id}
+                                </td>
                                 <td className="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-100">
                                     {c.name}
                                 </td>
                                 <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-300">
                                     {c.image}
                                 </td>
+
                                 <td className="px-6 py-3 whitespace-nowrap">
                     <span
                         className={`px-3 py-1 rounded-md text-sm font-medium ${getStateColor(
@@ -131,6 +189,17 @@ const DockerContainerComponent: React.FC = () => {
                                 </td>
                                 <td className="px-6 py-3 whitespace-nowrap text-sm text-gray-300">
                                     {c.created}
+                                </td>
+                                <td className="px-6 py-3 whitespace-nowrap text-center">
+                                    <button
+                                        className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg text-sm transition"
+                                        onClick={() => {
+                                            setSelectedContainer(c);
+                                            setIsDeleteModalOpen(true);
+                                        }}
+                                    >
+                                        Delete
+                                    </button>
                                 </td>
                             </tr>
                         ))}

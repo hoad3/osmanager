@@ -1,0 +1,71 @@
+﻿stateDiagram-v2
+    [*] --> ReceiveRequest : Client connects
+
+%% --- Middleware ---
+    ReceiveRequest --> ApiKeyCheck : Pass ApiKeyMiddleware
+    ApiKeyCheck --> ApiKeyRejected : ApiKey invalid
+    ApiKeyRejected --> End
+
+    ApiKeyCheck --> AuthCheck : ApiKey ok
+
+%% --- Authentication ---
+    AuthCheck --> JwtValid : JWT ok
+    AuthCheck --> JwtInvalid : JWT invalid
+    JwtInvalid --> End
+
+    JwtValid --> SelectHub
+
+%% --- Hub Selection ---
+    SelectHub --> FileHub : FileHub request
+    SelectHub --> FolderHub : FolderHub request
+
+%% --- FILE HUB ---
+    state FileHub {
+        [*] --> ResolveOp
+        ResolveOp --> FileUpload : Upload
+        ResolveOp --> FileDownload : Download
+        ResolveOp --> FileDelete : Delete
+        ResolveOp --> FileMove : Move
+        FileUpload --> [*]
+        FileDownload --> [*]
+        FileDelete --> [*]
+        FileMove --> [*]
+    }
+
+    FileHub --> FileServiceProcessing : Call FileService
+
+    state FileServiceProcessing {
+        [*] --> FileValidate
+        FileValidate --> FileIO
+        FileIO --> FileBuildResponse
+        FileBuildResponse --> [*]
+    }
+
+    FileServiceProcessing --> ReturnToClient
+
+%% --- FOLDER HUB ---
+    state FolderHub {
+        [*] --> ResolveFolderOp
+        ResolveFolderOp --> CreateFolder : Create
+        ResolveFolderOp --> RenameFolder : Rename
+        ResolveFolderOp --> DeleteFolder : Delete
+        ResolveFolderOp --> ListFolder : List
+        CreateFolder --> [*]
+        RenameFolder --> [*]
+        DeleteFolder --> [*]
+        ListFolder --> [*]
+    }
+
+    FolderHub --> FolderServiceProcessing : Call FolderService
+
+    state FolderServiceProcessing {
+        [*] --> FolderValidate
+        FolderValidate --> FolderIO
+        FolderIO --> FolderBuildResponse
+        FolderBuildResponse --> [*]
+    }
+
+    FolderServiceProcessing --> ReturnToClient
+
+    ReturnToClient --> End
+    End --> [*]
